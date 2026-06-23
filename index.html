@@ -124,6 +124,12 @@
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+window.onerror = (msg, src, line) => {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c0392b;color:#fff;z-index:9999;padding:14px 18px;font:14px monospace;white-space:pre-wrap';
+  el.textContent = 'JS ERROR (line ' + line + '): ' + msg;
+  document.body.appendChild(el);
+};
 // ─── Scene ───────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
