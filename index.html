@@ -116,6 +116,11 @@
 <div id="ui">
   <button class="btn" id="ragdollBtn">💀 Ragdoll</button>
   <button class="btn" id="carBtn">🚗 Enter Car</button>
+  <button class="btn emote-btn" data-emote="wave"  style="background:#8e44ad">👋 Wave</button>
+  <button class="btn emote-btn" data-emote="dance" style="background:#16a085">🕺 Dance</button>
+  <button class="btn emote-btn" data-emote="cheer" style="background:#d35400">🙌 Cheer</button>
+  <button class="btn emote-btn" data-emote="spin"  style="background:#c0392b">💫 Spin</button>
+  <button class="btn emote-btn" data-emote="sit"   style="background:#2c3e50">🪑 Sit</button>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -589,6 +594,8 @@ let carVel = 0;
 let carAngle = 0;
 let playerVelY = 0;
 let onGround = true;
+let currentEmote = null;
+let emoteTime = 0;
 
 // Ragdoll state
 let rdVel = new THREE.Vector3();
@@ -613,6 +620,8 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyR') toggleRagdoll();
   if (e.code === 'KeyE') tryEnterExit();
+  const emoteKeys = { Digit1:'wave', Digit2:'dance', Digit3:'cheer', Digit4:'spin', Digit5:'sit' };
+  if (emoteKeys[e.code] && !inCar && !isRagdoll) playEmote(emoteKeys[e.code]);
   if (e.code === 'Space' && onGround && !inCar && !isRagdoll) {
     playerVelY = 11;
     onGround = false;
@@ -704,6 +713,16 @@ window.addEventListener('mousemove', e => {
 });
 
 document.getElementById('ragdollBtn').addEventListener('click', toggleRagdoll);
+
+function playEmote(name) {
+  if (isRagdoll || inCar) return;
+  currentEmote = name;
+  emoteTime = 0;
+}
+
+document.querySelectorAll('.emote-btn').forEach(btn => {
+  btn.addEventListener('click', e => { e.stopPropagation(); playEmote(btn.dataset.emote); });
+});
 document.getElementById('carBtn').addEventListener('click', tryEnterExit);
 
 function toggleRagdoll() {
@@ -851,6 +870,44 @@ function animate() {
       char.legR.rotation.x = wv * 0.85;
       // Slight body bob
       char.body.position.y = 1.08 + Math.abs(Math.sin(walkCycle * 2)) * 0.04;
+    } else if (currentEmote) {
+      emoteTime += dt;
+      const t = emoteTime;
+      if (currentEmote === 'wave') {
+        char.armR.rotation.x = -Math.PI * 0.7;
+        char.armR.rotation.z = -0.15 + Math.sin(t * 10) * 0.5;
+        if (t > 2.5) { currentEmote = null; resetPose(); }
+      } else if (currentEmote === 'dance') {
+        char.root.position.y = Math.max(0, Math.abs(Math.sin(t * 6)) * 0.25);
+        char.armL.rotation.x = Math.sin(t * 6) * 1.2;
+        char.armR.rotation.x = -Math.sin(t * 6) * 1.2;
+        char.armL.rotation.z =  0.3 + Math.sin(t * 6) * 0.5;
+        char.armR.rotation.z = -0.3 - Math.sin(t * 6) * 0.5;
+        char.legL.rotation.x = Math.sin(t * 6) * 0.4;
+        char.legR.rotation.x = -Math.sin(t * 6) * 0.4;
+        char.root.rotation.y += dt * Math.sin(t * 3) * 1.5;
+        if (t > 4) { currentEmote = null; resetPose(); }
+      } else if (currentEmote === 'cheer') {
+        const up = Math.abs(Math.sin(t * 5));
+        char.armL.rotation.x = -Math.PI * 0.5 - up * 0.6;
+        char.armR.rotation.x = -Math.PI * 0.5 - up * 0.6;
+        char.armL.rotation.z =  0.3 + up * 0.3;
+        char.armR.rotation.z = -0.3 - up * 0.3;
+        char.root.position.y = up * 0.1;
+        if (t > 3) { currentEmote = null; resetPose(); }
+      } else if (currentEmote === 'spin') {
+        char.root.rotation.y += dt * 8;
+        char.armL.rotation.z =  Math.PI * 0.5;
+        char.armR.rotation.z = -Math.PI * 0.5;
+        if (t > 1.6) { currentEmote = null; resetPose(); }
+      } else if (currentEmote === 'sit') {
+        char.legL.rotation.x = Math.PI * 0.45;
+        char.legR.rotation.x = Math.PI * 0.45;
+        char.armL.rotation.x = 0.3;
+        char.armR.rotation.x = 0.3;
+        char.root.position.y = -0.28;
+        if (t > 3) { currentEmote = null; resetPose(); }
+      }
     } else {
       // Idle gentle sway
       walkCycle += dt * 1.5;
