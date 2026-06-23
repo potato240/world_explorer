@@ -138,9 +138,9 @@ const BCOLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c, 0xe
 const colliders = []; // {x,z,hw,hd}
 
 function makeBuilding(cx, cz) {
-  const bw = 9 + Math.random() * 12;
+  const bw = 6 + Math.random() * 8;  // max 14 — keeps buildings off roads
   const bh = 8 + Math.random() * 45;
-  const bd = 9 + Math.random() * 12;
+  const bd = 6 + Math.random() * 8;
   const col = BCOLORS[Math.floor(Math.random() * BCOLORS.length)];
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(bw, bh, bd),
@@ -430,6 +430,12 @@ let carAngle = 0;
 let rdVel = new THREE.Vector3();
 let rdAngVel = new THREE.Vector3();
 let rdTime = 0;
+const rdLimbs = {
+  armL: { angVel: new THREE.Vector3() },
+  armR: { angVel: new THREE.Vector3() },
+  legL: { angVel: new THREE.Vector3() },
+  legR: { angVel: new THREE.Vector3() },
+};
 
 // Camera orbit
 let camYaw = 0;
@@ -472,8 +478,15 @@ function toggleRagdoll() {
   isRagdoll = !isRagdoll;
   if (isRagdoll) {
     rdTime = 0;
-    rdVel.set((Math.random() - 0.5) * 6, 5 + Math.random() * 4, (Math.random() - 0.5) * 6);
-    rdAngVel.set((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9);
+    rdVel.set((Math.random() - 0.5) * 8, 5 + Math.random() * 4, (Math.random() - 0.5) * 8);
+    rdAngVel.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 12);
+    for (const limb of Object.values(rdLimbs)) {
+      limb.angVel.set(
+        (Math.random() - 0.5) * 18,
+        (Math.random() - 0.5) * 6,
+        (Math.random() - 0.5) * 10
+      );
+    }
     status.textContent = '💀 Ragdoll!';
   } else {
     resetPose();
@@ -562,17 +575,18 @@ function animate() {
     char.root.rotation.y += rdAngVel.y * dt;
     char.root.rotation.z += rdAngVel.z * dt;
 
-    const t = rdTime;
-    char.armL.rotation.x = Math.sin(t * 6.3) * 1.8;
-    char.armL.rotation.z = Math.cos(t * 4.1) * 1.0 + 0.25;
-    char.armR.rotation.x = Math.sin(t * 5.8 + 1.2) * 1.8;
-    char.armR.rotation.z = Math.cos(t * 3.9 + 0.7) * -1.0 - 0.25;
-    char.legL.rotation.x = Math.sin(t * 7.1) * 1.4;
-    char.legL.rotation.z = Math.cos(t * 5.0) * 0.5;
-    char.legR.rotation.x = Math.sin(t * 6.7 + 1.5) * 1.4;
-    char.legR.rotation.z = Math.cos(t * 4.5 + 0.9) * -0.5;
+    // Per-limb pendulum physics
+    const grav = 20, damp = 3.0;
+    for (const [name, limb] of Object.entries(rdLimbs)) {
+      const part = char[name];
+      // gravity torque pulls limb toward hanging position
+      limb.angVel.x += (-grav * Math.sin(part.rotation.x) * 0.35 - damp * limb.angVel.x) * dt;
+      limb.angVel.z += (-grav * Math.sin(part.rotation.z) * 0.2  - damp * limb.angVel.z) * dt;
+      part.rotation.x += limb.angVel.x * dt;
+      part.rotation.z += limb.angVel.z * dt;
+    }
 
-    rdAngVel.multiplyScalar(0.98);
+    rdAngVel.multiplyScalar(0.97);
 
   } else {
     // ── Walking ──
