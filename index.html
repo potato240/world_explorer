@@ -204,10 +204,11 @@ const colliders = []; // {x,z,hw,hd,h}
 const ladders   = []; // {x,z,h} — ladder foot positions
 const ladderMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
 
-// Pre-collect transforms; add to scene as InstancedMeshes after all buildings are placed
-const _rungTransforms = []; // { x, y, z }
-const _railTransforms = []; // { x, y, z, h }
-const _winTransforms  = []; // { x, y, z }
+// Shared geometries/materials — reused across all windows and ladder rails
+const _sharedRailGeo = new THREE.BoxGeometry(0.07, 1, 0.07);
+const _sharedRailMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+const _sharedWinGeo  = new THREE.BoxGeometry(1, 1.2, 0.05);
+const _sharedWinMat  = new THREE.MeshLambertMaterial({ color: 0xaaddff, transparent: true, opacity: 0.6 });
 
 // Roads sit at every 44 units; this checks if a box overlaps any road (half-width 4.5 + 1 margin)
 function overlapsRoad(cx, cz, hw, hd) {
@@ -242,25 +243,28 @@ function makeBuilding(cx, cz) {
   roof.position.set(cx, bh + 0.3, cz);
   scene.add(roof);
 
-  // Windows — collect transforms for instanced rendering
+  // Windows — shared geometry, individual meshes
   const floors = Math.floor(bh / 3.5);
   const cols = Math.floor(bw / 2.5);
   for (let f = 0; f < floors; f++) {
     for (let c = 0; c < cols; c++) {
-      _winTransforms.push({ x: cx - bw/2 + 1.5 + c * 2.4, y: 2 + f * 3.5, z: cz + bd/2 + 0.01 });
+      const win = new THREE.Mesh(_sharedWinGeo, _sharedWinMat);
+      win.position.set(cx - bw/2 + 1.5 + c * 2.4, 2 + f * 3.5, cz + bd/2 + 0.01);
+      scene.add(win);
     }
   }
 
   colliders.push({ x: cx, z: cz, hw: bw / 2, hd: bd / 2, h: bh });
 
-  // Ladder on front (+Z) face — collect transforms for instanced rendering
+  // Ladder rails — shared geometry, scaled per building height
   const lx = cx;
   const lz = cz + bd / 2 + 0.05;
-  _railTransforms.push({ x: lx - 0.22, y: bh / 2, z: lz, h: bh });
-  _railTransforms.push({ x: lx + 0.22, y: bh / 2, z: lz, h: bh });
-  for (let ry = 0.8; ry < bh; ry += 2.0) {
-    _rungTransforms.push({ x: lx, y: ry, z: lz });
-  }
+  [-0.22, 0.22].forEach(ox => {
+    const rail = new THREE.Mesh(_sharedRailGeo, _sharedRailMat);
+    rail.position.set(lx + ox, bh / 2, lz);
+    rail.scale.y = bh;
+    scene.add(rail);
+  });
   ladders.push({ x: lx, z: lz, h: bh });
 }
 
@@ -273,49 +277,6 @@ for (let bx = -180; bx <= 180; bx += 44) {
       if (Math.random() > 0.15) makeBuilding(qx, qz);
     }
   }
-}
-
-// Build ladder rails + rungs as InstancedMeshes (one draw call each)
-{
-  const railGeo  = new THREE.BoxGeometry(0.07, 1, 0.07);
-  const rungGeo  = new THREE.BoxGeometry(0.44, 0.07, 0.07);
-  const iMat     = new THREE.MeshLambertMaterial({ color: 0x888888 });
-  const dummy    = new THREE.Object3D();
-
-  const railMesh = new THREE.InstancedMesh(railGeo, iMat, _railTransforms.length);
-  railMesh.castShadow = false;
-  _railTransforms.forEach((t, i) => {
-    dummy.position.set(t.x, t.y, t.z);
-    dummy.scale.set(1, t.h, 1);
-    dummy.updateMatrix();
-    railMesh.setMatrixAt(i, dummy.matrix);
-  });
-  railMesh.instanceMatrix.needsUpdate = true;
-  scene.add(railMesh);
-
-  const rungMesh = new THREE.InstancedMesh(rungGeo, iMat, _rungTransforms.length);
-  rungMesh.castShadow = false;
-  _rungTransforms.forEach((t, i) => {
-    dummy.position.set(t.x, t.y, t.z);
-    dummy.scale.set(1, 1, 1);
-    dummy.updateMatrix();
-    rungMesh.setMatrixAt(i, dummy.matrix);
-  });
-  rungMesh.instanceMatrix.needsUpdate = true;
-  scene.add(rungMesh);
-
-  const winGeo  = new THREE.BoxGeometry(1, 1.2, 0.05);
-  const winMat2 = new THREE.MeshLambertMaterial({ color: 0xaaddff, transparent: true, opacity: 0.6 });
-  const winMesh = new THREE.InstancedMesh(winGeo, winMat2, _winTransforms.length);
-  winMesh.castShadow = false;
-  _winTransforms.forEach((t, i) => {
-    dummy.position.set(t.x, t.y, t.z);
-    dummy.scale.set(1, 1, 1);
-    dummy.updateMatrix();
-    winMesh.setMatrixAt(i, dummy.matrix);
-  });
-  winMesh.instanceMatrix.needsUpdate = true;
-  scene.add(winMesh);
 }
 
 // Trees
