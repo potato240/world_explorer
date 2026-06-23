@@ -124,12 +124,14 @@
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-window.onerror = (msg, src, line) => {
+function _showErr(msg) {
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c0392b;color:#fff;z-index:9999;padding:14px 18px;font:14px monospace;white-space:pre-wrap';
-  el.textContent = 'JS ERROR (line ' + line + '): ' + msg;
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c0392b;color:#fff;z-index:9999;padding:14px 18px;font:13px monospace;white-space:pre-wrap;max-height:40vh;overflow:auto';
+  el.textContent = msg;
   document.body.appendChild(el);
-};
+}
+window.onerror = (msg, src, line, col, err) => _showErr('ERROR: ' + msg + '\n' + (err && err.stack ? err.stack : 'line ' + line));
+try {
 // ─── Scene ───────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -1016,6 +1018,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+} catch(e) { _showErr('CAUGHT: ' + e.message + '\n' + e.stack); }
 </script>
 </body>
 </html>
