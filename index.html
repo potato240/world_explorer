@@ -261,30 +261,35 @@ function createPeakChar(skinColor, shirtColor, shortsColor) {
   brim.position.y = 2.37;
   root.add(brim);
 
-  // ── Arms: pivot at shoulder, full articulated arm ──
+  // ── Arms: hang straight at sides, upper = shirt colour, lower = skin ──
   function makeArm(side) {
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.44, 1.38, 0);
+    // pivot at edge of torso, top of torso height
+    shoulder.position.set(side * 0.42, 1.35, 0);
+    shoulder.rotation.z = side * 0.12; // very slight outward lean
 
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.46, 7), skinMat);
-    upper.position.y = -0.23;
+    // upper arm (shirt coloured)
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.095, 0.5, 7), shirtMat);
+    upper.position.y = -0.25;
     upper.castShadow = true;
     shoulder.add(upper);
 
-    const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.095, 7, 6), skinMat);
-    elbowJoint.position.y = -0.48;
+    const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 6), skinMat);
+    elbowJoint.position.y = -0.52;
     shoulder.add(elbowJoint);
 
-    // forearm group pivots at elbow
+    // forearm (skin)
     const forearm = new THREE.Group();
-    forearm.position.y = -0.48;
-    const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.075, 0.4, 7), skinMat);
-    lower.position.y = -0.2;
+    forearm.position.y = -0.52;
+    const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.42, 7), skinMat);
+    lower.position.y = -0.21;
     lower.castShadow = true;
     forearm.add(lower);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 6), skinMat);
-    hand.scale.set(1.1, 0.85, 1.2);
-    hand.position.y = -0.44;
+
+    // round puffy hand
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.115, 8, 7), skinMat);
+    hand.scale.set(1.15, 0.9, 1.2);
+    hand.position.y = -0.46;
     forearm.add(hand);
     shoulder.add(forearm);
 
@@ -295,8 +300,6 @@ function createPeakChar(skinColor, shirtColor, shortsColor) {
   const armRParts = makeArm(1);
   const armL = armLParts.shoulder;
   const armR = armRParts.shoulder;
-  armL.rotation.z =  0.15;
-  armR.rotation.z = -0.15;
 
   // ── Legs: proper thigh + shin + boot ──
   function makeLeg(side) {
