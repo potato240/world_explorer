@@ -231,26 +231,24 @@ function createPeakChar(bodyColor) {
   head.castShadow = true;
   root.add(head);
 
-  // Dot eyes — simple black circles, PEAK style
-  [-0.15, 0.15].forEach(ex => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 10), eyeMat);
-    eye.position.set(ex, 1.74, 0.38);
+  // Eyes — large oval PEAK-style dots sitting on head surface
+  const headR = 0.44;
+  [-0.16, 0.16].forEach(ex => {
+    const angle = Math.atan2(ex, headR);
+    const ez = Math.cos(angle) * headR * 0.98;
+    const ex2 = Math.sin(angle) * headR * 0.98;
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), eyeMat);
+    eye.scale.set(0.85, 1.2, 0.5);
+    eye.position.set(ex2, 1.72, ez);
     root.add(eye);
   });
 
-  // Little oval mouth
-  const mouthMat = new THREE.MeshLambertMaterial({ color: 0x7a2a2a });
-  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), mouthMat);
-  mouth.scale.set(1.6, 0.7, 1);
-  mouth.position.set(0, 1.61, 0.41);
-  root.add(mouth);
-
-  // Rosy cheeks
-  const cheekMat = new THREE.MeshLambertMaterial({ color: 0xff9999, transparent: true, opacity: 0.5 });
-  [-0.25, 0.25].forEach(cx => {
-    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), cheekMat);
-    cheek.scale.set(1.2, 0.5, 0.5);
-    cheek.position.set(cx, 1.66, 0.4);
+  // Cheeks — wide flat blush ovals
+  const cheekMat = new THREE.MeshLambertMaterial({ color: 0xff8888, transparent: true, opacity: 0.55 });
+  [-0.27, 0.27].forEach(cx => {
+    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), cheekMat);
+    cheek.scale.set(1.4, 0.6, 0.4);
+    cheek.position.set(cx, 1.63, 0.38);
     root.add(cheek);
   });
 
