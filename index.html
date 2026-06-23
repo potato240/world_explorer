@@ -100,12 +100,16 @@
       <div class="swatches" id="sw-shorts"></div>
     </div>
     <div class="cc-row">
-      <label>Hat</label>
+      <label>Hat Style</label>
+      <div class="swatches" id="sw-hattype"></div>
+    </div>
+    <div class="cc-row">
+      <label>Hat Color</label>
       <div class="swatches" id="sw-hat"></div>
     </div>
   </div>
   <button id="playBtn">▶ Play</button>
-  <p style="font-size:11px;opacity:0.4">Press ESC to return here</p>
+  <p style="font-size:11px;opacity:0.4">Press ESC to return here &nbsp;|&nbsp; SPACE to jump</p>
 </div>
 <div id="info">WASD Move &nbsp;|&nbsp; E Enter/Exit Car &nbsp;|&nbsp; R Ragdoll</div>
 <div id="status">On foot</div>
@@ -315,14 +319,74 @@ function createPeakChar(skinColor, shirtColor, shortsColor) {
   hips.castShadow = true;
   root.add(hips);
 
-  // Explorer hat (wide brim like in the screenshot)
-  const hatMat  = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
-  const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.32, 8), hatMat);
-  hatCrown.position.y = 2.54;
-  root.add(hatCrown);
-  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.06, 12), hatMat);
-  brim.position.y = 2.37;
-  root.add(brim);
+  // ── Hats ──
+  const hatMat = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
+  const pomMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+
+  function makeHatExplorer() {
+    const g = new THREE.Group();
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.32, 8), hatMat);
+    crown.position.y = 2.54; g.add(crown);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.06, 12), hatMat);
+    brim.position.y = 2.37; g.add(brim);
+    return g;
+  }
+  function makeHatBeanie() {
+    const g = new THREE.Group();
+    const body2 = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.44, 0.4, 16), hatMat);
+    body2.position.y = 2.22; g.add(body2);
+    const brimB = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.49, 0.1, 16), hatMat);
+    brimB.position.y = 2.0; g.add(brimB);
+    const pom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), pomMat);
+    pom.position.y = 2.46; g.add(pom);
+    return g;
+  }
+  function makeHatBaseball() {
+    const g = new THREE.Group();
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.46, 10, 6, 0, Math.PI*2, 0, Math.PI*0.55), hatMat);
+    cap.position.y = 2.08; g.add(cap);
+    const peak = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.06, 0.36), hatMat);
+    peak.position.set(0, 1.98, 0.52); g.add(peak);
+    return g;
+  }
+  function makeHatTopHat() {
+    const g = new THREE.Group();
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.3, 0.72, 8), hatMat);
+    crown.position.y = 2.62; g.add(crown);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.06, 12), hatMat);
+    brim.position.y = 2.23; g.add(brim);
+    return g;
+  }
+  function makeHatHardhat() {
+    const g = new THREE.Group();
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.46, 10, 6, 0, Math.PI*2, 0, Math.PI*0.5), hatMat);
+    dome.position.y = 2.1; g.add(dome);
+    const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.05, 12), hatMat);
+    lip.position.y = 2.06; g.add(lip);
+    return g;
+  }
+  function makeHatCowboy() {
+    const g = new THREE.Group();
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 0.36, 8), hatMat);
+    crown.position.y = 2.56; g.add(crown);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.05, 12), hatMat);
+    brim.position.y = 2.37; g.add(brim);
+    // brim curve (front/back dip)
+    const dip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.6), hatMat);
+    dip.position.set(0, 2.33, 0.55); g.add(dip);
+    return g;
+  }
+
+  const hats = {
+    none:     new THREE.Group(),
+    explorer: makeHatExplorer(),
+    beanie:   makeHatBeanie(),
+    baseball: makeHatBaseball(),
+    tophat:   makeHatTopHat(),
+    hardhat:  makeHatHardhat(),
+    cowboy:   makeHatCowboy(),
+  };
+  Object.entries(hats).forEach(([k, g]) => { g.visible = k === 'explorer'; root.add(g); });
 
   // ── Arms: hang straight at sides, upper = shirt colour, lower = skin ──
   function makeArm(side) {
@@ -399,7 +463,7 @@ function createPeakChar(skinColor, shirtColor, shortsColor) {
   const legL = legLParts.hip;
   const legR = legRParts.hip;
 
-  return { root, head, body, armL, armR, legL, legR, mats: { skinMat, shirtMat, shortsMat, shoeMat, hatMat } };
+  return { root, head, body, armL, armR, legL, legR, hats, mats: { skinMat, shirtMat, shortsMat, shoeMat, hatMat } };
 }
 
 const char = createPeakChar(0x5bcfcf, 0xff6b35, 0x4a7c3f);
@@ -486,6 +550,8 @@ let isRagdoll = false;
 let walkCycle = 0;
 let carVel = 0;
 let carAngle = 0;
+let playerVelY = 0;
+let onGround = true;
 
 // Ragdoll state
 let rdVel = new THREE.Vector3();
@@ -510,16 +576,27 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyR') toggleRagdoll();
   if (e.code === 'KeyE') tryEnterExit();
+  if (e.code === 'Space' && onGround && !inCar && !isRagdoll) {
+    playerVelY = 11;
+    onGround = false;
+    e.preventDefault();
+  }
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
 // ─── Character Creator ───────────────────────────────────────────────────────
-const SKIN_COLORS   = [0x5bcfcf,0xe8a87c,0xf4c76a,0xff8c69,0xc68642,0x8d5524,0x7ec8e3,0xa8e6a3,0xff9fb2,0xb39ddb];
-const SHIRT_COLORS  = [0xff6b35,0x3498db,0xe74c3c,0x2ecc71,0x9b59b6,0xf39c12,0x1abc9c,0xe91e63,0xffffff,0x222222];
-const SHORTS_COLORS = [0x4a7c3f,0x2c3e50,0x8e44ad,0xd35400,0x16a085,0xc0392b,0x2980b9,0xf1c40f,0x7f8c8d,0x1a1a2e];
-const HAT_COLORS    = [0x8B6914,0xcc3333,0x2c3e50,0x27ae60,0x8e44ad,0xe67e22,0xecf0f1,0x222222,0x3498db,0xff69b4];
+const SKIN_COLORS   = [
+  0x5bcfcf,0x7ec8e3,0xa8e6a3,0xff9fb2,0xb39ddb,0xf9e04b,0xff8c69,0xff6eb4,
+  0xe8a87c,0xf4c76a,0xc68642,0x8d5524,0x4a2800,0xfde8c0,0xffffff,0x222222,
+  0x4fc3f7,0x81c784,0xce93d8,0xffb74d
+];
+const SHIRT_COLORS  = [0xff6b35,0x3498db,0xe74c3c,0x2ecc71,0x9b59b6,0xf39c12,0x1abc9c,0xe91e63,0xffffff,0x222222,0xff69b4,0x00bcd4];
+const SHORTS_COLORS = [0x4a7c3f,0x2c3e50,0x8e44ad,0xd35400,0x16a085,0xc0392b,0x2980b9,0xf1c40f,0x7f8c8d,0x1a1a2e,0x880e4f,0x004d40];
+const HAT_COLORS    = [0x8B6914,0xcc3333,0x2c3e50,0x27ae60,0x8e44ad,0xe67e22,0xecf0f1,0x222222,0x3498db,0xff69b4,0xff0000,0xf9e04b];
+const HAT_TYPES     = ['none','explorer','beanie','baseball','tophat','hardhat','cowboy'];
+const HAT_LABELS    = ['✕','🤠','🧢','🧢','🎩','⛑','🤠'];
 
-const charChoices = { skin: SKIN_COLORS[0], shirt: SHIRT_COLORS[0], shorts: SHORTS_COLORS[0], hat: HAT_COLORS[0] };
+const charChoices = { skin: SKIN_COLORS[0], shirt: SHIRT_COLORS[0], shorts: SHORTS_COLORS[0], hat: HAT_COLORS[0], hatType: 'explorer' };
 
 function buildSwatches(containerId, colors, key) {
   const el = document.getElementById(containerId);
@@ -532,9 +609,32 @@ function buildSwatches(containerId, colors, key) {
       el.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
       s.classList.add('active');
       charChoices[key] = col;
-      // live update material
       const matKey = key + 'Mat';
       if (char.mats[matKey]) char.mats[matKey].color.setHex(col);
+    });
+    el.appendChild(s);
+  });
+}
+
+function buildHatTypes(containerId) {
+  const el = document.getElementById(containerId);
+  HAT_TYPES.forEach((type, i) => {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (type === 'explorer' ? ' active' : '');
+    s.style.background = '#555';
+    s.style.display = 'flex';
+    s.style.alignItems = 'center';
+    s.style.justifyContent = 'center';
+    s.style.fontSize = '16px';
+    s.style.borderRadius = '8px';
+    s.textContent = HAT_LABELS[i];
+    s.title = type;
+    s.addEventListener('click', e => {
+      e.stopPropagation();
+      el.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      s.classList.add('active');
+      charChoices.hatType = type;
+      Object.entries(char.hats).forEach(([k, g]) => g.visible = k === type);
     });
     el.appendChild(s);
   });
@@ -544,6 +644,7 @@ buildSwatches('sw-skin',   SKIN_COLORS,   'skin');
 buildSwatches('sw-shirt',  SHIRT_COLORS,  'shirt');
 buildSwatches('sw-shorts', SHORTS_COLORS, 'shorts');
 buildSwatches('sw-hat',    HAT_COLORS,    'hat');
+buildHatTypes('sw-hattype');
 
 // Pointer lock
 const overlay = document.getElementById('overlay');
@@ -720,6 +821,15 @@ function animate() {
       char.legL.rotation.x *= 0.85;
       char.legR.rotation.x *= 0.85;
       char.body.position.y = 1.08 + Math.sin(walkCycle) * 0.015;
+    }
+
+    // Jump / gravity
+    playerVelY -= 28 * dt;
+    char.root.position.y += playerVelY * dt;
+    if (char.root.position.y <= 0) {
+      char.root.position.y = 0;
+      playerVelY = 0;
+      onGround = true;
     }
   }
 
