@@ -197,7 +197,10 @@ const BCOLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c, 0xe
 const colliders = []; // {x,z,hw,hd,h}
 const ladders   = []; // {x,z,h} — ladder foot positions
 const ladderMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
-const rungMat   = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
+
+// Pre-collect rung transforms; add to scene as one InstancedMesh after all buildings are placed
+const _rungTransforms = []; // { x, y, z }
+const _railTransforms = []; // { x, y, z, h }
 
 // Roads sit at every 44 units; this checks if a box overlaps any road (half-width 4.5 + 1 margin)
 function overlapsRoad(cx, cz, hw, hd) {
@@ -246,18 +249,13 @@ function makeBuilding(cx, cz) {
 
   colliders.push({ x: cx, z: cz, hw: bw / 2, hd: bd / 2, h: bh });
 
-  // Ladder on front (+Z) face
+  // Ladder on front (+Z) face — collect transforms for instanced rendering
   const lx = cx;
   const lz = cz + bd / 2 + 0.05;
-  [-0.22, 0.22].forEach(ox => {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, bh, 0.07), ladderMat);
-    rail.position.set(lx + ox, bh / 2, lz);
-    scene.add(rail);
-  });
+  _railTransforms.push({ x: lx - 0.22, y: bh / 2, z: lz, h: bh });
+  _railTransforms.push({ x: lx + 0.22, y: bh / 2, z: lz, h: bh });
   for (let ry = 0.8; ry < bh; ry += 2.0) {
-    const rung = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.07), ladderMat);
-    rung.position.set(lx, ry, lz);
-    scene.add(rung);
+    _rungTransforms.push({ x: lx, y: ry, z: lz });
   }
   ladders.push({ x: lx, z: lz, h: bh });
 }
@@ -271,6 +269,36 @@ for (let bx = -180; bx <= 180; bx += 44) {
       if (Math.random() > 0.15) makeBuilding(qx, qz);
     }
   }
+}
+
+// Build ladder rails + rungs as InstancedMeshes (one draw call each)
+{
+  const railGeo  = new THREE.BoxGeometry(0.07, 1, 0.07);
+  const rungGeo  = new THREE.BoxGeometry(0.44, 0.07, 0.07);
+  const iMat     = new THREE.MeshLambertMaterial({ color: 0x888888 });
+  const dummy    = new THREE.Object3D();
+
+  const railMesh = new THREE.InstancedMesh(railGeo, iMat, _railTransforms.length);
+  railMesh.castShadow = false;
+  _railTransforms.forEach((t, i) => {
+    dummy.position.set(t.x, t.y, t.z);
+    dummy.scale.set(1, t.h, 1);
+    dummy.updateMatrix();
+    railMesh.setMatrixAt(i, dummy.matrix);
+  });
+  railMesh.instanceMatrix.needsUpdate = true;
+  scene.add(railMesh);
+
+  const rungMesh = new THREE.InstancedMesh(rungGeo, iMat, _rungTransforms.length);
+  rungMesh.castShadow = false;
+  _rungTransforms.forEach((t, i) => {
+    dummy.position.set(t.x, t.y, t.z);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    rungMesh.setMatrixAt(i, dummy.matrix);
+  });
+  rungMesh.instanceMatrix.needsUpdate = true;
+  scene.add(rungMesh);
 }
 
 // Trees
