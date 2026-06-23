@@ -262,34 +262,34 @@ function makeBuilding(cx, cz) {
   ladders.push({ x: lx, z: lz, h: bh });
 }
 
-for (let bx = -180; bx <= 180; bx += 44) {
-  for (let bz = -180; bz <= 180; bz += 44) {
-    const quads = [[bx+12,bz+12],[bx+28,bz+12],[bx+12,bz+28],[bx+28,bz+28]];
-    for (const [qx, qz] of quads) {
-      // skip buildings too close to the spawn area
-      if (Math.abs(qx) < 25 && Math.abs(qz) < 25) continue;
-      if (Math.random() > 0.15) makeBuilding(qx, qz);
-    }
-  }
-}
-
-// Trees
+// Buildings + trees load after UI is ready (deferred so page is interactive immediately)
 const treeTrunkMat = new THREE.MeshLambertMaterial({ color: 0x6b3f1f });
 const treeLeaveMat = new THREE.MeshLambertMaterial({ color: 0x2d7a2d });
-for (let i = 0; i < 200; i++) {
-  const tx = (Math.random() - 0.5) * 380;
-  const tz = (Math.random() - 0.5) * 380;
-  if (checkColliders(tx, tz, 3)) continue;
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2, 6), treeTrunkMat);
-  trunk.position.set(tx, 1, tz);
-  trunk.castShadow = true;
-  scene.add(trunk);
-  const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.2 + Math.random(), 8, 8), treeLeaveMat);
-  leaves.position.set(tx, 3.2, tz);
-  leaves.castShadow = true;
-  scene.add(leaves);
-  colliders.push({ x: tx, z: tz, hw: 0.8, hd: 0.8 });
-}
+setTimeout(() => {
+  for (let bx = -180; bx <= 180; bx += 44) {
+    for (let bz = -180; bz <= 180; bz += 44) {
+      const quads = [[bx+12,bz+12],[bx+28,bz+12],[bx+12,bz+28],[bx+28,bz+28]];
+      for (const [qx, qz] of quads) {
+        if (Math.abs(qx) < 25 && Math.abs(qz) < 25) continue;
+        if (Math.random() > 0.15) makeBuilding(qx, qz);
+      }
+    }
+  }
+  for (let i = 0; i < 200; i++) {
+    const tx = (Math.random() - 0.5) * 380;
+    const tz = (Math.random() - 0.5) * 380;
+    if (checkColliders(tx, tz, 3)) continue;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2, 6), treeTrunkMat);
+    trunk.position.set(tx, 1, tz);
+    trunk.castShadow = true;
+    scene.add(trunk);
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.2 + Math.random(), 8, 8), treeLeaveMat);
+    leaves.position.set(tx, 3.2, tz);
+    leaves.castShadow = true;
+    scene.add(leaves);
+    colliders.push({ x: tx, z: tz, hw: 0.8, hd: 0.8 });
+  }
+}, 0);
 
 // ─── Jump Pads ───────────────────────────────────────────────────────────────
 const jumpPads = [];
