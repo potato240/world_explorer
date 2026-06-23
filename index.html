@@ -127,8 +127,12 @@
   <button class="btn emote-btn" data-emote="spin"  style="background:#c0392b">💫 Spin</button>
   <button class="btn emote-btn" data-emote="sit"   style="background:#2c3e50">🪑 Sit</button>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+  onerror="document.body.insertAdjacentHTML('beforeend','<div style=position:fixed;top:0;left:0;right:0;background:red;color:white;z-index:9999;padding:10px;font:14px monospace>THREE.JS FAILED TO LOAD</div>')">
+</script>
 <script>
+window.onerror = (m,s,l,c,e) => { document.body.insertAdjacentHTML('beforeend','<div style=position:fixed;top:0;left:0;right:0;background:darkred;color:white;z-index:9999;padding:10px;font:13px monospace>'+(e&&e.stack||m+' line:'+l)+'</div>'); };
+document.querySelector('#overlay h2').textContent = '🌍 World Explorer (JS OK)';
 // ─── Scene ───────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
