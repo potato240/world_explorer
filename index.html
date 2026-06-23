@@ -236,7 +236,7 @@ function makeBuilding(cx, cz) {
     }
   }
 
-  colliders.push({ x: cx, z: cz, hw: bw / 2, hd: bd / 2 });
+  colliders.push({ x: cx, z: cz, hw: bw / 2, hd: bd / 2, h: bh });
 }
 
 for (let bx = -180; bx <= 180; bx += 44) {
@@ -862,8 +862,17 @@ function animate() {
     // Jump / gravity
     playerVelY -= 28 * dt;
     char.root.position.y += playerVelY * dt;
-    if (char.root.position.y <= 0) {
-      char.root.position.y = 0;
+
+    // Ground + roof landing
+    let floorY = 0;
+    const px = char.root.position.x, pz = char.root.position.z;
+    for (const c of colliders) {
+      if (c.h && Math.abs(px - c.x) < c.hw - 0.2 && Math.abs(pz - c.z) < c.hd - 0.2) {
+        if (char.root.position.y >= c.h - 0.5) floorY = Math.max(floorY, c.h);
+      }
+    }
+    if (char.root.position.y <= floorY) {
+      char.root.position.y = floorY;
       playerVelY = 0;
       onGround = true;
     }
