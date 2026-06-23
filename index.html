@@ -8,14 +8,31 @@
     body { overflow: hidden; background: #87CEEB; font-family: sans-serif; }
     #overlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: rgba(0,0,0,0.72);
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      color: white; z-index: 100;
-      gap: 10px;
+      color: white; z-index: 100; gap: 18px;
     }
-    #overlay h2 { font-size: 28px; }
-    #overlay p  { font-size: 15px; opacity: 0.75; }
+    #overlay h2 { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
+    .cc-row { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .cc-row label { font-size: 12px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+    .swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .swatch {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid transparent; cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .swatch:hover { transform: scale(1.15); }
+    .swatch.active { border-color: white; transform: scale(1.2); }
+    .cc-sections { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+    #playBtn {
+      margin-top: 6px; padding: 14px 48px; font-size: 17px; font-weight: bold;
+      background: #27ae60; color: white; border: none; border-radius: 12px;
+      cursor: pointer; box-shadow: 0 5px 0 #1a7a40;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #playBtn:hover { transform: translateY(-2px); box-shadow: 0 7px 0 #1a7a40; }
+    #playBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 #1a7a40; }
     canvas { display: block; }
     #ui {
       position: fixed;
@@ -69,8 +86,26 @@
 <body>
 <div id="overlay">
   <h2>🌍 World Explorer</h2>
-  <p>Click to play</p>
-  <p style="font-size:12px;opacity:0.5">Press ESC to release cursor</p>
+  <div class="cc-sections">
+    <div class="cc-row">
+      <label>Skin</label>
+      <div class="swatches" id="sw-skin"></div>
+    </div>
+    <div class="cc-row">
+      <label>Shirt</label>
+      <div class="swatches" id="sw-shirt"></div>
+    </div>
+    <div class="cc-row">
+      <label>Shorts</label>
+      <div class="swatches" id="sw-shorts"></div>
+    </div>
+    <div class="cc-row">
+      <label>Hat</label>
+      <div class="swatches" id="sw-hat"></div>
+    </div>
+  </div>
+  <button id="playBtn">▶ Play</button>
+  <p style="font-size:11px;opacity:0.4">Press ESC to return here</p>
 </div>
 <div id="info">WASD Move &nbsp;|&nbsp; E Enter/Exit Car &nbsp;|&nbsp; R Ragdoll</div>
 <div id="status">On foot</div>
@@ -364,7 +399,7 @@ function createPeakChar(skinColor, shirtColor, shortsColor) {
   const legL = legLParts.hip;
   const legR = legRParts.hip;
 
-  return { root, head, body, armL, armR, legL, legR };
+  return { root, head, body, armL, armR, legL, legR, mats: { skinMat, shirtMat, shortsMat, shoeMat, hatMat } };
 }
 
 const char = createPeakChar(0x5bcfcf, 0xff6b35, 0x4a7c3f);
@@ -478,9 +513,44 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
+// ─── Character Creator ───────────────────────────────────────────────────────
+const SKIN_COLORS   = [0x5bcfcf,0xe8a87c,0xf4c76a,0xff8c69,0xc68642,0x8d5524,0x7ec8e3,0xa8e6a3,0xff9fb2,0xb39ddb];
+const SHIRT_COLORS  = [0xff6b35,0x3498db,0xe74c3c,0x2ecc71,0x9b59b6,0xf39c12,0x1abc9c,0xe91e63,0xffffff,0x222222];
+const SHORTS_COLORS = [0x4a7c3f,0x2c3e50,0x8e44ad,0xd35400,0x16a085,0xc0392b,0x2980b9,0xf1c40f,0x7f8c8d,0x1a1a2e];
+const HAT_COLORS    = [0x8B6914,0xcc3333,0x2c3e50,0x27ae60,0x8e44ad,0xe67e22,0xecf0f1,0x222222,0x3498db,0xff69b4];
+
+const charChoices = { skin: SKIN_COLORS[0], shirt: SHIRT_COLORS[0], shorts: SHORTS_COLORS[0], hat: HAT_COLORS[0] };
+
+function buildSwatches(containerId, colors, key) {
+  const el = document.getElementById(containerId);
+  colors.forEach((col, i) => {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (i === 0 ? ' active' : '');
+    s.style.background = '#' + col.toString(16).padStart(6, '0');
+    s.addEventListener('click', e => {
+      e.stopPropagation();
+      el.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      s.classList.add('active');
+      charChoices[key] = col;
+      // live update material
+      const matKey = key + 'Mat';
+      if (char.mats[matKey]) char.mats[matKey].color.setHex(col);
+    });
+    el.appendChild(s);
+  });
+}
+
+buildSwatches('sw-skin',   SKIN_COLORS,   'skin');
+buildSwatches('sw-shirt',  SHIRT_COLORS,  'shirt');
+buildSwatches('sw-shorts', SHORTS_COLORS, 'shorts');
+buildSwatches('sw-hat',    HAT_COLORS,    'hat');
+
 // Pointer lock
 const overlay = document.getElementById('overlay');
-overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+document.getElementById('playBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  renderer.domElement.requestPointerLock();
+});
 renderer.domElement.addEventListener('click', () => renderer.domElement.requestPointerLock());
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement === renderer.domElement) {
