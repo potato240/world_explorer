@@ -178,6 +178,8 @@ for (let bx = -180; bx <= 180; bx += 44) {
   for (let bz = -180; bz <= 180; bz += 44) {
     const quads = [[bx+12,bz+12],[bx+28,bz+12],[bx+12,bz+28],[bx+28,bz+28]];
     for (const [qx, qz] of quads) {
+      // skip buildings too close to the spawn area
+      if (Math.abs(qx) < 25 && Math.abs(qz) < 25) continue;
       if (Math.random() > 0.15) makeBuilding(qx, qz);
     }
   }
@@ -340,7 +342,7 @@ function createPeakChar(skinColor, shirtColor, shortsColor) {
 }
 
 const char = createPeakChar(0x5bcfcf, 0xff6b35, 0x4a7c3f);
-char.root.position.set(0, 0, 0);
+char.root.position.set(0, 0, 5);
 scene.add(char.root);
 
 // ─── Car ─────────────────────────────────────────────────────────────────────
@@ -413,7 +415,7 @@ function createCar(col) {
 }
 
 const carObj = createCar(0xff4444);
-carObj.group.position.set(0, 0, 15);
+carObj.group.position.set(0, 0, -8);
 scene.add(carObj.group);
 
 // ─── State ───────────────────────────────────────────────────────────────────
