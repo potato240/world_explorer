@@ -304,8 +304,9 @@ const padPositions = [
 ];
 padPositions.forEach(([px, pz]) => makeJumpPad(px, pz));
 
-function checkColliders(x, z, radius) {
+function checkColliders(x, z, radius, aboveY = 0) {
   for (const c of colliders) {
+    if (c.h && aboveY >= c.h) continue; // player is above this building — no XZ block
     if (Math.abs(x - c.x) < c.hw + radius && Math.abs(z - c.z) < c.hd + radius) return true;
   }
   return false;
@@ -838,8 +839,9 @@ function animate() {
       mz = mz / len * spd * dt;
       const nx = char.root.position.x + mx;
       const nz = char.root.position.z + mz;
-      if (!checkColliders(nx, char.root.position.z, 0.55)) char.root.position.x = nx;
-      if (!checkColliders(char.root.position.x, nz, 0.55)) char.root.position.z = nz;
+      const py = char.root.position.y;
+      if (!checkColliders(nx, char.root.position.z, 0.55, py)) char.root.position.x = nx;
+      if (!checkColliders(char.root.position.x, nz, 0.55, py)) char.root.position.z = nz;
       char.root.rotation.y = Math.atan2(mx, mz);
       walkCycle += dt * 9;
       const wv = Math.sin(walkCycle);
