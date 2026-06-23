@@ -198,9 +198,10 @@ const colliders = []; // {x,z,hw,hd,h}
 const ladders   = []; // {x,z,h} — ladder foot positions
 const ladderMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
 
-// Pre-collect rung transforms; add to scene as one InstancedMesh after all buildings are placed
+// Pre-collect transforms; add to scene as InstancedMeshes after all buildings are placed
 const _rungTransforms = []; // { x, y, z }
 const _railTransforms = []; // { x, y, z, h }
+const _winTransforms  = []; // { x, y, z }
 
 // Roads sit at every 44 units; this checks if a box overlaps any road (half-width 4.5 + 1 margin)
 function overlapsRoad(cx, cz, hw, hd) {
@@ -235,15 +236,12 @@ function makeBuilding(cx, cz) {
   roof.position.set(cx, bh + 0.3, cz);
   scene.add(roof);
 
-  // Windows
-  const winMat = new THREE.MeshLambertMaterial({ color: 0xaaddff, transparent: true, opacity: 0.6 });
+  // Windows — collect transforms for instanced rendering
   const floors = Math.floor(bh / 3.5);
   const cols = Math.floor(bw / 2.5);
   for (let f = 0; f < floors; f++) {
     for (let c = 0; c < cols; c++) {
-      const win = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.05), winMat);
-      win.position.set(cx - bw/2 + 1.5 + c * 2.4, 2 + f * 3.5, cz + bd/2 + 0.01);
-      scene.add(win);
+      _winTransforms.push({ x: cx - bw/2 + 1.5 + c * 2.4, y: 2 + f * 3.5, z: cz + bd/2 + 0.01 });
     }
   }
 
@@ -299,6 +297,19 @@ for (let bx = -180; bx <= 180; bx += 44) {
   });
   rungMesh.instanceMatrix.needsUpdate = true;
   scene.add(rungMesh);
+
+  const winGeo  = new THREE.BoxGeometry(1, 1.2, 0.05);
+  const winMat2 = new THREE.MeshLambertMaterial({ color: 0xaaddff, transparent: true, opacity: 0.6 });
+  const winMesh = new THREE.InstancedMesh(winGeo, winMat2, _winTransforms.length);
+  winMesh.castShadow = false;
+  _winTransforms.forEach((t, i) => {
+    dummy.position.set(t.x, t.y, t.z);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    winMesh.setMatrixAt(i, dummy.matrix);
+  });
+  winMesh.instanceMatrix.needsUpdate = true;
+  scene.add(winMesh);
 }
 
 // Trees
