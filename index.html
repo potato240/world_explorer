@@ -218,83 +218,93 @@ function createPeakChar(bodyColor) {
   const shoeMat  = new THREE.MeshLambertMaterial({ color: 0x111111 });
   const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x111111 });
 
-  // ── Body: big puffy rounded torso (the main blob) ──
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.52, 16, 16), bodyMat);
-  body.scale.set(1.0, 1.1, 0.9);
-  body.position.y = 0.82;
+  // ── Body: wide puffy blob, like a down jacket ──
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.56, 20, 20), bodyMat);
+  body.scale.set(1.12, 1.0, 0.92);
+  body.position.y = 0.9;
   body.castShadow = true;
   root.add(body);
 
-  // ── Head: large sphere sitting on top, same size feel as body ──
+  // ── Head: big round sphere ──
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 16), skinMat);
-  head.position.y = 1.68;
+  head.position.y = 1.72;
   head.castShadow = true;
   root.add(head);
 
-  // Eyes — large oval PEAK-style dots sitting on head surface
-  const headR = 0.44;
-  [-0.16, 0.16].forEach(ex => {
-    const angle = Math.atan2(ex, headR);
-    const ez = Math.cos(angle) * headR * 0.98;
-    const ex2 = Math.sin(angle) * headR * 0.98;
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), eyeMat);
-    eye.scale.set(0.85, 1.2, 0.5);
-    eye.position.set(ex2, 1.72, ez);
+  // Eyes — two clean oval dots on the face
+  [-0.15, 0.15].forEach(ex => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12), eyeMat);
+    eye.scale.set(0.8, 1.15, 0.45);
+    eye.position.set(ex, 1.76, 0.41);
     root.add(eye);
-  });
-
-  // Cheeks — wide flat blush ovals
-  const cheekMat = new THREE.MeshLambertMaterial({ color: 0xff8888, transparent: true, opacity: 0.55 });
-  [-0.27, 0.27].forEach(cx => {
-    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), cheekMat);
-    cheek.scale.set(1.4, 0.6, 0.4);
-    cheek.position.set(cx, 1.63, 0.38);
-    root.add(cheek);
   });
 
   // Beanie hat
   const hatMat = new THREE.MeshLambertMaterial({ color: 0xcc3333 });
-  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.48, 0.12, 16), hatMat);
-  hatBrim.position.y = 1.96;
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.49, 0.11, 16), hatMat);
+  hatBrim.position.y = 2.0;
   root.add(hatBrim);
-  const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.44, 0.38, 16), hatMat);
-  hatTop.position.y = 2.21;
+  const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.45, 0.36, 16), hatMat);
+  hatTop.position.y = 2.22;
   root.add(hatTop);
   const hatPom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
   hatPom.position.y = 2.44;
   root.add(hatPom);
 
-  // ── Arms: tiny stubs poking out of body sides ──
+  // ── Arms: rounded sausage arms hanging from shoulders ──
   function makeArm(side) {
     const g = new THREE.Group();
-    g.position.set(side * 0.5, 0.95, 0);
-    // upper arm stub
-    const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.28, 10), bodyMat);
-    stub.rotation.z = Math.PI / 2;
-    stub.position.x = side * 0.14;
-    stub.castShadow = true;
-    g.add(stub);
-    // round hand
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), skinMat);
-    hand.position.x = side * 0.3;
+    // pivot at shoulder
+    g.position.set(side * 0.58, 1.18, 0);
+    g.rotation.z = side * 0.4; // slight outward angle
+
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.42, 10), bodyMat);
+    upper.position.y = -0.21;
+    upper.castShadow = true;
+    g.add(upper);
+
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), bodyMat);
+    elbow.position.y = -0.44;
+    g.add(elbow);
+
+    const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.34, 10), bodyMat);
+    lower.position.y = -0.64;
+    lower.castShadow = true;
+    g.add(lower);
+
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10), skinMat);
+    hand.position.y = -0.84;
     g.add(hand);
+
     root.add(g);
     return g;
   }
   const armL = makeArm(-1);
   const armR = makeArm(1);
 
-  // ── Legs: short round stumps ──
+  // ── Legs: short chubby stumps ──
   function makeLeg(side) {
     const g = new THREE.Group();
-    g.position.set(side * 0.19, 0.38, 0);
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.38, 10), pantsMat);
-    leg.position.y = -0.14;
-    leg.castShadow = true;
-    g.add(leg);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.1, 0.3), shoeMat);
-    foot.position.set(0, -0.37, 0.05);
+    g.position.set(side * 0.2, 0.42, 0);
+
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.36, 10), pantsMat);
+    thigh.position.y = -0.18;
+    thigh.castShadow = true;
+    g.add(thigh);
+
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), pantsMat);
+    knee.position.y = -0.38;
+    g.add(knee);
+
+    const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.28, 10), pantsMat);
+    shin.position.y = -0.55;
+    shin.castShadow = true;
+    g.add(shin);
+
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.1, 0.33), shoeMat);
+    foot.position.set(0, -0.73, 0.07);
     g.add(foot);
+
     root.add(g);
     return g;
   }
