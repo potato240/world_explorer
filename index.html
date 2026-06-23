@@ -268,6 +268,42 @@ for (let i = 0; i < 200; i++) {
   colliders.push({ x: tx, z: tz, hw: 0.8, hd: 0.8 });
 }
 
+// ─── Jump Pads ───────────────────────────────────────────────────────────────
+const jumpPads = [];
+const padBaseMat  = new THREE.MeshLambertMaterial({ color: 0xffdd00 });
+const padArrowMat = new THREE.MeshLambertMaterial({ color: 0xff6600 });
+
+function makeJumpPad(x, z) {
+  // Base disc
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.18, 16), padBaseMat);
+  base.position.set(x, 0.09, z);
+  base.castShadow = true;
+  scene.add(base);
+  // Chevron arrows pointing up (3 stacked triangles)
+  for (let i = 0; i < 3; i++) {
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.45 - i * 0.05, 0.22, 3), padArrowMat);
+    arrow.position.set(x, 0.22 + i * 0.22, z);
+    arrow.rotation.y = Math.PI / 6;
+    scene.add(arrow);
+  }
+  // Glowing ring
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.08, 8, 24), padArrowMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.set(x, 0.2, z);
+  scene.add(ring);
+  jumpPads.push({ x, z, r: 1.1 });
+}
+
+// Place pads near building corners across the city
+const padPositions = [
+  [15, 0], [-15, 0], [0, 15], [0, -15],
+  [44, 44], [-44, 44], [44, -44], [-44, -44],
+  [88, 0], [-88, 0], [0, 88], [0, -88],
+  [44, 0], [-44, 0], [0, 44], [0, -44],
+  [88, 44], [-88, 44], [88, -44], [-88, -44],
+];
+padPositions.forEach(([px, pz]) => makeJumpPad(px, pz));
+
 function checkColliders(x, z, radius) {
   for (const c of colliders) {
     if (Math.abs(x - c.x) < c.hw + radius && Math.abs(z - c.z) < c.hd + radius) return true;
@@ -729,7 +765,7 @@ function animate() {
 
   if (inCar) {
     // ── Car driving ──
-    const accel = 18, maxSpd = 28, friction = 0.88, turnSpd = 1.7;
+    const accel = 32, maxSpd = 55, friction = 0.9, turnSpd = 2.0;
     if (keys['KeyW'] || keys['ArrowUp'])   carVel += accel * dt;
     if (keys['KeyS'] || keys['ArrowDown']) carVel -= accel * 0.7 * dt;
     if (Math.abs(carVel) > 0.5) {
@@ -830,6 +866,19 @@ function animate() {
       char.root.position.y = 0;
       playerVelY = 0;
       onGround = true;
+    }
+
+    // Jump pad detection
+    if (onGround) {
+      for (const pad of jumpPads) {
+        const dx = char.root.position.x - pad.x;
+        const dz = char.root.position.z - pad.z;
+        if (dx*dx + dz*dz < pad.r * pad.r) {
+          playerVelY = 28;
+          onGround = false;
+          break;
+        }
+      }
     }
   }
 
