@@ -246,30 +246,19 @@ function makeBuilding(cx, cz) {
 
   colliders.push({ x: cx, z: cz, hw: bw / 2, hd: bd / 2, h: bh });
 
-  // Ladder on front (+Z) face — 2 rails + rungs merged into one geometry
+  // Ladder on front (+Z) face
   const lx = cx;
   const lz = cz + bd / 2 + 0.05;
-  const ladderGeo = new THREE.BufferGeometry();
-  const positions = [];
-  const addBox = (bx2, by, bz2, bw2, bh2, bd2) => {
-    const hx = bw2/2, hy = bh2/2, hz = bd2/2;
-    const verts = [
-      bx2-hx,by-hy,bz2+hz, bx2+hx,by-hy,bz2+hz, bx2+hx,by+hy,bz2+hz, bx2-hx,by-hy,bz2+hz, bx2+hx,by+hy,bz2+hz, bx2-hx,by+hy,bz2+hz,
-      bx2-hx,by-hy,bz2-hz, bx2-hx,by+hy,bz2-hz, bx2+hx,by+hy,bz2-hz, bx2-hx,by-hy,bz2-hz, bx2+hx,by+hy,bz2-hz, bx2+hx,by-hy,bz2-hz,
-      bx2-hx,by+hy,bz2-hz, bx2-hx,by+hy,bz2+hz, bx2+hx,by+hy,bz2+hz, bx2-hx,by+hy,bz2-hz, bx2+hx,by+hy,bz2+hz, bx2+hx,by+hy,bz2-hz,
-      bx2-hx,by-hy,bz2-hz, bx2+hx,by-hy,bz2-hz, bx2+hx,by-hy,bz2+hz, bx2-hx,by-hy,bz2-hz, bx2+hx,by-hy,bz2+hz, bx2-hx,by-hy,bz2+hz,
-      bx2+hx,by-hy,bz2-hz, bx2+hx,by+hy,bz2-hz, bx2+hx,by+hy,bz2+hz, bx2+hx,by-hy,bz2-hz, bx2+hx,by+hy,bz2+hz, bx2+hx,by-hy,bz2+hz,
-      bx2-hx,by-hy,bz2-hz, bx2-hx,by-hy,bz2+hz, bx2-hx,by+hy,bz2+hz, bx2-hx,by-hy,bz2-hz, bx2-hx,by+hy,bz2+hz, bx2-hx,by+hy,bz2-hz,
-    ];
-    positions.push(...verts);
-  };
-  addBox(lx-0.22, bh/2, lz, 0.07, bh, 0.07); // left rail
-  addBox(lx+0.22, bh/2, lz, 0.07, bh, 0.07); // right rail
-  for (let ry = 0.4; ry < bh; ry += 1.1) addBox(lx, ry, lz, 0.44, 0.07, 0.07); // rungs
-  ladderGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  ladderGeo.computeVertexNormals();
-  const ladderMesh = new THREE.Mesh(ladderGeo, ladderMat);
-  scene.add(ladderMesh);
+  [-0.22, 0.22].forEach(ox => {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, bh, 0.07), ladderMat);
+    rail.position.set(lx + ox, bh / 2, lz);
+    scene.add(rail);
+  });
+  for (let ry = 0.8; ry < bh; ry += 2.0) {
+    const rung = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.07), ladderMat);
+    rung.position.set(lx, ry, lz);
+    scene.add(rung);
+  }
   ladders.push({ x: lx, z: lz, h: bh });
 }
 
