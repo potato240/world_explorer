@@ -332,7 +332,7 @@ function createCar(col) {
   const wheels = [];
   const wMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
   const hubMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
-  [[−1.18, 0.4, 1.4],[1.18, 0.4, 1.4],[−1.18, 0.4, −1.4],[1.18, 0.4, −1.4]].forEach(([wx, wy, wz]) => {
+  [[-1.18, 0.4, 1.4],[1.18, 0.4, 1.4],[-1.18, 0.4, -1.4],[1.18, 0.4, -1.4]].forEach(([wx, wy, wz]) => {
     const wg = new THREE.Group();
     wg.position.set(wx, wy, wz);
     const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.28, 16), wMat);
