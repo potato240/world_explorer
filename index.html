@@ -218,10 +218,9 @@ function createPeakChar(bodyColor) {
   const shoeMat  = new THREE.MeshLambertMaterial({ color: 0x111111 });
   const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x111111 });
 
-  // ── Body: wide puffy blob, like a down jacket ──
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.56, 20, 20), bodyMat);
-  body.scale.set(1.12, 1.0, 0.92);
-  body.position.y = 0.9;
+  // ── Body: one big uniform sphere like a PEAK puffy jacket ──
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.68, 24, 24), bodyMat);
+  body.position.y = 1.0;
   body.castShadow = true;
   root.add(body);
 
