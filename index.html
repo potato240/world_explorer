@@ -137,10 +137,21 @@ for (let i = -200; i <= 200; i += 44) {
 const BCOLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c, 0xe67e22, 0xecf0f1, 0xc0392b, 0x2c3e50];
 const colliders = []; // {x,z,hw,hd}
 
+// Roads sit at every 44 units; this checks if a box overlaps any road (half-width 4.5 + 1 margin)
+function overlapsRoad(cx, cz, hw, hd) {
+  const rHW = 5.5;
+  for (let r = -200; r <= 200; r += 44) {
+    if (cx - hw < r + rHW && cx + hw > r - rHW) return true; // overlaps vertical road at x=r
+    if (cz - hd < r + rHW && cz + hd > r - rHW) return true; // overlaps horizontal road at z=r
+  }
+  return false;
+}
+
 function makeBuilding(cx, cz) {
-  const bw = 6 + Math.random() * 8;  // max 14 — keeps buildings off roads
+  const bw = 6 + Math.random() * 8;
   const bh = 8 + Math.random() * 45;
   const bd = 6 + Math.random() * 8;
+  if (overlapsRoad(cx, cz, bw / 2, bd / 2)) return; // skip if it would sit on a road
   const col = BCOLORS[Math.floor(Math.random() * BCOLORS.length)];
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(bw, bh, bd),
