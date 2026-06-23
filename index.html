@@ -448,12 +448,10 @@ const rdLimbs = {
   legR: { angVel: new THREE.Vector3() },
 };
 
-// Camera orbit
+// Camera — auto-follows behind player/car
 let camYaw = 0;
-let camDist = 9;
+const camDist = 9;
 const camHeight = 4.5;
-let mouseDown = false;
-let lastMX = 0;
 
 const status = document.getElementById('status');
 
@@ -464,22 +462,6 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE') tryEnterExit();
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
-
-renderer.domElement.addEventListener('mousedown', e => { mouseDown = true; lastMX = e.clientX; });
-window.addEventListener('mouseup', () => mouseDown = false);
-window.addEventListener('mousemove', e => {
-  if (mouseDown) { camYaw -= (e.clientX - lastMX) * 0.012; lastMX = e.clientX; }
-});
-window.addEventListener('wheel', e => { camDist = Math.max(3, Math.min(22, camDist + e.deltaY * 0.015)); });
-
-// Touch orbit
-let lastTX = 0;
-renderer.domElement.addEventListener('touchstart', e => { lastTX = e.touches[0].clientX; });
-renderer.domElement.addEventListener('touchmove', e => {
-  camYaw -= (e.touches[0].clientX - lastTX) * 0.012;
-  lastTX = e.touches[0].clientX;
-  e.preventDefault();
-}, { passive: false });
 
 document.getElementById('ragdollBtn').addEventListener('click', toggleRagdoll);
 document.getElementById('carBtn').addEventListener('click', tryEnterExit);
@@ -639,12 +621,19 @@ function animate() {
     }
   }
 
-  // ── Camera ──
+  // ── Camera — smoothly trails behind facing direction ──
+  const targetYaw = inCar ? carAngle : char.root.rotation.y;
+  // lerp angle (handle wrap-around)
+  let dyaw = targetYaw - camYaw;
+  if (dyaw >  Math.PI) dyaw -= Math.PI * 2;
+  if (dyaw < -Math.PI) dyaw += Math.PI * 2;
+  camYaw += dyaw * 4 * dt;
+
   const focus = inCar ? carObj.group.position : char.root.position;
   const camX = focus.x + Math.sin(camYaw) * camDist;
   const camZ = focus.z + Math.cos(camYaw) * camDist;
   _v3.set(camX, focus.y + camHeight, camZ);
-  camera.position.lerp(_v3, 0.1);
+  camera.position.lerp(_v3, 0.12);
   camera.lookAt(focus.x, focus.y + 1.2, focus.z);
 
   renderer.render(scene, camera);
