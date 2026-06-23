@@ -448,7 +448,7 @@ const rdLimbs = {
   legR: { angVel: new THREE.Vector3() },
 };
 
-// Camera — auto-follows behind player/car
+// Camera
 let camYaw = 0;
 const camDist = 9;
 const camHeight = 4.5;
@@ -462,6 +462,11 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE') tryEnterExit();
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
+
+// Mouse move rotates camera — no click/lock needed
+window.addEventListener('mousemove', e => {
+  camYaw -= e.movementX * 0.003;
+});
 
 document.getElementById('ragdollBtn').addEventListener('click', toggleRagdoll);
 document.getElementById('carBtn').addEventListener('click', tryEnterExit);
@@ -621,14 +626,7 @@ function animate() {
     }
   }
 
-  // ── Camera — smoothly trails behind facing direction ──
-  const targetYaw = inCar ? carAngle : char.root.rotation.y;
-  // lerp angle (handle wrap-around)
-  let dyaw = targetYaw - camYaw;
-  if (dyaw >  Math.PI) dyaw -= Math.PI * 2;
-  if (dyaw < -Math.PI) dyaw += Math.PI * 2;
-  camYaw += dyaw * 4 * dt;
-
+  // ── Camera ──
   const focus = inCar ? carObj.group.position : char.root.position;
   const camX = focus.x + Math.sin(camYaw) * camDist;
   const camZ = focus.z + Math.cos(camYaw) * camDist;
