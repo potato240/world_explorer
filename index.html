@@ -212,94 +212,90 @@ function checkColliders(x, z, radius) {
 function createPeakChar(bodyColor) {
   const root = new THREE.Group();
 
-  const skinMat = new THREE.MeshLambertMaterial({ color: 0xfad4a6 });
-  const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor });
-  const pantsMat = new THREE.MeshLambertMaterial({ color: 0x3b5998 });
-  const shoeMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
-  const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+  const skinMat  = new THREE.MeshLambertMaterial({ color: 0xfad4a6 });
+  const bodyMat  = new THREE.MeshLambertMaterial({ color: bodyColor });
+  const pantsMat = new THREE.MeshLambertMaterial({ color: 0x1a1a2e });
+  const shoeMat  = new THREE.MeshLambertMaterial({ color: 0x111111 });
+  const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x111111 });
 
-  // Head — big round, PEAK style
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.46, 16, 16), skinMat);
-  head.scale.y = 1.05;
-  head.position.y = 1.78;
-  head.castShadow = true;
-  root.add(head);
-
-  // Rosy cheeks
-  const cheekMat = new THREE.MeshLambertMaterial({ color: 0xffaaaa, transparent: true, opacity: 0.6 });
-  [-0.28, 0.28].forEach(cx => {
-    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), cheekMat);
-    cheek.position.set(cx, 1.72, 0.38);
-    root.add(cheek);
-  });
-
-  // Eyes — big and round
-  [-0.17, 0.17].forEach(ex => {
-    const white = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-    white.position.set(ex, 1.84, 0.39);
-    root.add(white);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
-    pupil.position.set(ex, 1.83, 0.46);
-    root.add(pupil);
-  });
-
-  // Mouth — small smile line
-  const mouthMat = new THREE.MeshLambertMaterial({ color: 0x993333 });
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.018, 6, 8, Math.PI), mouthMat);
-  mouth.position.set(0, 1.67, 0.43);
-  mouth.rotation.z = Math.PI;
-  root.add(mouth);
-
-  // Body — egg/oval shape (squished sphere)
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 12), bodyMat);
-  body.scale.set(1.0, 1.15, 0.85);
-  body.position.y = 1.02;
+  // ── Body: big puffy rounded torso (the main blob) ──
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.52, 16, 16), bodyMat);
+  body.scale.set(1.0, 1.1, 0.9);
+  body.position.y = 0.82;
   body.castShadow = true;
   root.add(body);
 
-  // Backpack
-  const packMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.44, 0.18), packMat);
-  pack.position.set(0, 1.08, -0.44);
-  pack.castShadow = true;
-  root.add(pack);
-  const packTop = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.16), packMat);
-  packTop.position.set(0, 1.34, -0.43);
-  root.add(packTop);
+  // ── Head: large sphere sitting on top, same size feel as body ──
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 16), skinMat);
+  head.position.y = 1.68;
+  head.castShadow = true;
+  root.add(head);
 
-  // Arms — short stubby, pivot from shoulder
+  // Dot eyes — simple black circles, PEAK style
+  [-0.15, 0.15].forEach(ex => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 10), eyeMat);
+    eye.position.set(ex, 1.74, 0.38);
+    root.add(eye);
+  });
+
+  // Little oval mouth
+  const mouthMat = new THREE.MeshLambertMaterial({ color: 0x7a2a2a });
+  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), mouthMat);
+  mouth.scale.set(1.6, 0.7, 1);
+  mouth.position.set(0, 1.61, 0.41);
+  root.add(mouth);
+
+  // Rosy cheeks
+  const cheekMat = new THREE.MeshLambertMaterial({ color: 0xff9999, transparent: true, opacity: 0.5 });
+  [-0.25, 0.25].forEach(cx => {
+    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), cheekMat);
+    cheek.scale.set(1.2, 0.5, 0.5);
+    cheek.position.set(cx, 1.66, 0.4);
+    root.add(cheek);
+  });
+
+  // Beanie hat
+  const hatMat = new THREE.MeshLambertMaterial({ color: 0xcc3333 });
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.48, 0.12, 16), hatMat);
+  hatBrim.position.y = 1.96;
+  root.add(hatBrim);
+  const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.44, 0.38, 16), hatMat);
+  hatTop.position.y = 2.21;
+  root.add(hatTop);
+  const hatPom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  hatPom.position.y = 2.44;
+  root.add(hatPom);
+
+  // ── Arms: tiny stubs poking out of body sides ──
   function makeArm(side) {
     const g = new THREE.Group();
-    g.position.set(side * 0.44, 1.28, 0);
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.32, 8), bodyMat);
-    upper.position.y = -0.16;
-    upper.castShadow = true;
-    g.add(upper);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), skinMat);
-    hand.position.y = -0.36;
+    g.position.set(side * 0.5, 0.95, 0);
+    // upper arm stub
+    const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.28, 10), bodyMat);
+    stub.rotation.z = Math.PI / 2;
+    stub.position.x = side * 0.14;
+    stub.castShadow = true;
+    g.add(stub);
+    // round hand
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), skinMat);
+    hand.position.x = side * 0.3;
     g.add(hand);
     root.add(g);
     return g;
   }
   const armL = makeArm(-1);
   const armR = makeArm(1);
-  armL.rotation.z = 0.3;
-  armR.rotation.z = -0.3;
 
-  // Legs — short and round
+  // ── Legs: short round stumps ──
   function makeLeg(side) {
     const g = new THREE.Group();
-    g.position.set(side * 0.18, 0.62, 0);
-    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.34, 8), pantsMat);
-    thigh.position.y = -0.17;
-    thigh.castShadow = true;
-    g.add(thigh);
-    const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.3, 8), pantsMat);
-    shin.position.y = -0.49;
-    shin.castShadow = true;
-    g.add(shin);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.32), shoeMat);
-    foot.position.set(0, -0.69, 0.07);
+    g.position.set(side * 0.19, 0.38, 0);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.38, 10), pantsMat);
+    leg.position.y = -0.14;
+    leg.castShadow = true;
+    g.add(leg);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.1, 0.3), shoeMat);
+    foot.position.set(0, -0.37, 0.05);
     g.add(foot);
     root.add(g);
     return g;
@@ -453,12 +449,8 @@ function toggleRagdoll() {
 
 function resetPose() {
   char.root.rotation.set(0, char.root.rotation.y, 0);
-  char.head.position.set(0, 1.72, 0);
-  char.head.rotation.set(0, 0, 0);
-  char.body.position.set(0, 1.08, 0);
-  char.body.rotation.set(0, 0, 0);
-  char.armL.rotation.set(0, 0, 0.25);
-  char.armR.rotation.set(0, 0, -0.25);
+  char.armL.rotation.set(0, 0, 0);
+  char.armR.rotation.set(0, 0, 0);
   char.legL.rotation.set(0, 0, 0);
   char.legR.rotation.set(0, 0, 0);
 }
