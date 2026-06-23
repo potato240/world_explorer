@@ -194,7 +194,10 @@ for (let i = -200; i <= 200; i += 44) {
 
 // ─── Buildings ───────────────────────────────────────────────────────────────
 const BCOLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c, 0xe67e22, 0xecf0f1, 0xc0392b, 0x2c3e50];
-const colliders = []; // {x,z,hw,hd}
+const colliders = []; // {x,z,hw,hd,h}
+const ladders   = []; // {x,z,h} — ladder foot positions
+const ladderMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+const rungMat   = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
 
 // Roads sit at every 44 units; this checks if a box overlaps any road (half-width 4.5 + 1 margin)
 function overlapsRoad(cx, cz, hw, hd) {
@@ -242,6 +245,23 @@ function makeBuilding(cx, cz) {
   }
 
   colliders.push({ x: cx, z: cz, hw: bw / 2, hd: bd / 2, h: bh });
+
+  // Ladder on front (+Z) face
+  const lx = cx;
+  const lz = cz + bd / 2 + 0.05;
+  // Rails
+  [-0.22, 0.22].forEach(ox => {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, bh, 0.07), ladderMat);
+    rail.position.set(lx + ox, bh / 2, lz);
+    scene.add(rail);
+  });
+  // Rungs every 0.55 units
+  for (let ry = 0.4; ry < bh; ry += 0.55) {
+    const rung = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.07), rungMat);
+    rung.position.set(lx, ry, lz);
+    scene.add(rung);
+  }
+  ladders.push({ x: lx, z: lz, h: bh });
 }
 
 for (let bx = -180; bx <= 180; bx += 44) {
@@ -594,6 +614,8 @@ let carVel = 0;
 let carAngle = 0;
 let playerVelY = 0;
 let onGround = true;
+let onLadder = false;
+let ladderH = 0;
 let currentEmote = null;
 let emoteTime = 0;
 
@@ -918,6 +940,28 @@ function animate() {
       char.body.position.y = 1.08 + Math.sin(walkCycle) * 0.015;
     }
 
+    // Ladder detection
+    onLadder = false;
+    for (const l of ladders) {
+      const dx = char.root.position.x - l.x;
+      const dz = char.root.position.z - l.z;
+      if (dx*dx + dz*dz < 0.7*0.7 && char.root.position.y < l.h + 0.5) {
+        onLadder = true; ladderH = l.h; break;
+      }
+    }
+
+    if (onLadder) {
+      playerVelY = 0;
+      if (keys['KeyW'] || keys['ArrowUp'])   char.root.position.y = Math.min(ladderH, char.root.position.y + 6 * dt);
+      if (keys['KeyS'] || keys['ArrowDown']) char.root.position.y = Math.max(0,       char.root.position.y - 6 * dt);
+      onGround = false;
+      // simple climb anim
+      walkCycle += dt * 8;
+      char.armL.rotation.x = Math.sin(walkCycle) * 1.0;
+      char.armR.rotation.x = -Math.sin(walkCycle) * 1.0;
+      char.legL.rotation.x = -Math.sin(walkCycle) * 0.6;
+      char.legR.rotation.x = Math.sin(walkCycle) * 0.6;
+    } else {
     // Jump / gravity
     playerVelY -= 28 * dt;
     char.root.position.y += playerVelY * dt;
@@ -948,7 +992,7 @@ function animate() {
         }
       }
     }
-  }
+    } // end ladder else
 
   // ── Camera ──
   const focus = inCar ? carObj.group.position : char.root.position;
