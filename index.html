@@ -1254,7 +1254,7 @@ function animate() {
             n.frenzyTimer = 1.2 + Math.random()*0.6;
           } else {
             // Chase
-            const spd = 4;
+            const spd = 11;
             n.vx = (ex/eDist)*spd; n.vz = (ez/eDist)*spd;
           }
         }
@@ -1275,10 +1275,15 @@ function animate() {
         if (!n.descending) {
           if (Math.abs(n.group.position.x) > 190) n.vx *= -1;
           if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
-          n.walk += dt*6;
+          const nSpd = Math.sqrt(n.vx*n.vx + n.vz*n.vz);
+          const nSprinting = nSpd > 8;
+          n.walk += dt*(nSprinting ? 16 : 6);
           const wv = Math.sin(n.walk);
-          nc.armL.rotation.x = wv*0.7; nc.armR.rotation.x = -wv*0.7;
-          nc.legL.rotation.x = -wv*0.85; nc.legR.rotation.x = wv*0.85;
+          nc.armL.rotation.x = wv*(nSprinting ? 1.2 : 0.7);
+          nc.armR.rotation.x = -wv*(nSprinting ? 1.2 : 0.7);
+          nc.legL.rotation.x = -wv*(nSprinting ? 1.3 : 0.85);
+          nc.legR.rotation.x = wv*(nSprinting ? 1.3 : 0.85);
+          nc.body.rotation.x = nSprinting ? -0.2 : 0;
           nc.body.position.y = 1.08 + Math.abs(Math.sin(n.walk*2))*0.04;
           n.group.rotation.y = Math.atan2(n.vx, n.vz);
         }
@@ -1406,7 +1411,7 @@ function animate() {
       if (d > 0.65) {
         // Walk to ladder base
         n.onLadder = false;
-        n.vx = (dx/d) * 6; n.vz = (dz/d) * 6;
+        n.vx = (dx/d) * 13; n.vz = (dz/d) * 13;
       } else {
         // At ladder — climb
         n.onLadder = true;
@@ -1531,7 +1536,7 @@ function animate() {
       const l = n.floodTarget;
       const dx = l.x - n.group.position.x, dz = l.z - n.group.position.z;
       const d = Math.sqrt(dx*dx+dz*dz);
-      if (d > 0.65) { n.onLadder = false; n.vx = (dx/d)*7; n.vz = (dz/d)*7; }
+      if (d > 0.65) { n.onLadder = false; n.vx = (dx/d)*13; n.vz = (dz/d)*13; }
       else {
         n.onLadder = true; n.vx = 0; n.vz = 0;
         n.group.position.x = l.x; n.group.position.z = l.z;
