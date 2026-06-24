@@ -378,6 +378,21 @@ waterMesh.rotation.x = -Math.PI / 2;
 waterMesh.position.y = -50;
 scene.add(waterMesh);
 
+// Tsunami button near spawn
+const tsunamiBtnGroup = new THREE.Group();
+tsunamiBtnGroup.position.set(0, 0, -8);
+const tsunamiPed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+tsunamiPed.position.y = 0.5; tsunamiBtnGroup.add(tsunamiPed);
+const tsunamiBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0x006688 }));
+tsunamiBtnMesh.position.y = 1.17; tsunamiBtnGroup.add(tsunamiBtnMesh);
+scene.add(tsunamiBtnGroup);
+const tsunamiLabel = document.createElement('div');
+tsunamiLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+document.body.appendChild(tsunamiLabel);
+const tsunamiUI = document.createElement('div');
+tsunamiUI.style.cssText = 'position:absolute;top:100px;left:50%;transform:translateX(-50%);color:#00eeff;font:bold 28px monospace;text-shadow:0 0 16px #00eeff,0 2px 4px #000;display:none;pointer-events:none';
+document.body.appendChild(tsunamiUI);
+
 // PVP Frenzy button near spawn
 const pvpBtnGroup = new THREE.Group();
 pvpBtnGroup.position.set(8, 0, 0);
@@ -458,6 +473,7 @@ let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
 let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
 let pvpFrenzy = false, playerTeam = 0;
 let floodActive = false, floodCountdown = 0, waterLevel = -0.5, floodPeakTimer = -1;
+let tsunamiActive = false, tsunamiCountdown = 0, tsunamiPeakTimer = -1;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -531,7 +547,9 @@ window.addEventListener('keydown', function(e) {
     const pp = char.root.position;
     const bx = pp.x - pvpBtnGroup.position.x, bz = pp.z - pvpBtnGroup.position.z;
     const fx = pp.x - floodBtnGroup.position.x, fz = pp.z - floodBtnGroup.position.z;
-    if (!isRagdoll && Math.sqrt(fx*fx+fz*fz) < 3.5) toggleFlood();
+    const tx = pp.x - tsunamiBtnGroup.position.x, tz = pp.z - tsunamiBtnGroup.position.z;
+    if (!isRagdoll && Math.sqrt(tx*tx+tz*tz) < 3.5) toggleTsunami();
+    else if (!isRagdoll && Math.sqrt(fx*fx+fz*fz) < 3.5) toggleFlood();
     else if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP();
     else tryEnterExit();
   }
@@ -626,6 +644,34 @@ function toggleRagdoll() {
     Object.values(rdLimbs).forEach(function(l) { l.angVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*6,(Math.random()-0.5)*10); });
     status.textContent = 'Ragdoll!';
   } else { resetPose(); status.textContent = 'On foot'; }
+}
+
+function toggleTsunami() {
+  if (tsunamiActive) {
+    tsunamiActive = false; tsunamiCountdown = 0; tsunamiPeakTimer = -1;
+    waterLevel = -0.5; waterMesh.position.y = -50;
+    tsunamiBtnMesh.material.color.setHex(0x006688);
+    tsunamiUI.style.display = 'none';
+    for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; if (n.onRoof || n.onLadder) { n.onRoof = false; n.onLadder = false; n.descending = true; } else { n.floodTarget = null; } }
+  } else {
+    if (floodActive) return;
+    tsunamiActive = true; tsunamiCountdown = 30;
+    tsunamiBtnMesh.material.color.setHex(0xff6600);
+    tsunamiUI.style.display = 'block';
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      const nx = n.group.position.x, nz = n.group.position.z;
+      let best = null, bestScore = -1;
+      for (let k = 0; k < ladders.length; k++) {
+        const l = ladders[k];
+        if (l.h < 35) continue;
+        const dx = l.x - nx, dz = l.z - nz;
+        const score = l.h / (Math.sqrt(dx*dx+dz*dz) + 1);
+        if (score > bestScore) { bestScore = score; best = l; }
+      }
+      n.floodTarget = best; n.onRoof = false; n.onLadder = false;
+    }
+  }
 }
 
 function toggleFlood() {
@@ -1168,6 +1214,81 @@ function animate() {
     floodLabel.style.display = 'block';
     floodLabel.textContent = '[E] ' + (floodActive ? 'STOP FLOOD' : 'TRIGGER FLOOD');
   } else { floodLabel.style.display = 'none'; }
+
+  // Tsunami logic
+  if (tsunamiActive) {
+    if (tsunamiCountdown > 0) {
+      tsunamiCountdown -= dt;
+      const secs = Math.ceil(tsunamiCountdown);
+      tsunamiUI.textContent = '🌊 TSUNAMI IN ' + secs + 's — REACH THE TALLEST BUILDINGS!';
+      tsunamiUI.style.color = secs <= 10 ? '#ff2200' : '#00eeff';
+    } else {
+      if (tsunamiPeakTimer === -1) {
+        waterLevel = Math.min(45, waterLevel + dt * 2.5);
+        if (waterLevel >= 45) tsunamiPeakTimer = 10;
+      } else if (tsunamiPeakTimer > 0) {
+        tsunamiPeakTimer -= dt;
+      } else {
+        waterLevel = Math.max(-0.5, waterLevel - dt * 2.0);
+        if (waterLevel <= -0.5) {
+          tsunamiActive = false; tsunamiPeakTimer = -1;
+          waterMesh.position.y = -50;
+          tsunamiBtnMesh.material.color.setHex(0x006688);
+          tsunamiUI.style.display = 'none';
+          for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; if (n.onRoof || n.onLadder) { n.onRoof = false; n.onLadder = false; n.descending = true; } else { n.floodTarget = null; } }
+        }
+      }
+      waterMesh.position.y = waterLevel;
+      const tDraining = tsunamiPeakTimer !== -1 && tsunamiPeakTimer <= 0;
+      tsunamiUI.textContent = tDraining ? '🌊 RECEDING — ' + Math.max(0,waterLevel).toFixed(1) + 'm'
+        : (tsunamiPeakTimer > 0 ? '🌊 TSUNAMI PEAK — receding in ' + Math.ceil(tsunamiPeakTimer) + 's'
+        : '🌊 TSUNAMI — ' + waterLevel.toFixed(1) + 'm');
+      // Drown player
+      if (char.root.position.y < waterLevel - 0.5 && !isRagdoll) {
+        isRagdoll = true;
+        rdVel.set((Math.random()-0.5)*8, 12, (Math.random()-0.5)*8);
+        rdAngVel.set((Math.random()-0.5)*10,(Math.random()-0.5)*8,(Math.random()-0.5)*10);
+      }
+      // Drown NPCs
+      for (let i = 0; i < npcs.length; i++) {
+        const n = npcs[i];
+        if (!n.ragdoll && !n.onRoof && n.group.position.y < waterLevel - 0.5) {
+          n.ragdoll = true;
+          n.rvx = (Math.random()-0.5)*7; n.rvy = 8; n.rvz = (Math.random()-0.5)*7;
+          n.rax = (Math.random()-0.5)*12; n.ray = (Math.random()-0.5)*8; n.raz = (Math.random()-0.5)*12;
+        }
+      }
+    }
+    // NPC tsunami AI — same ladder logic, reuses floodTarget assigned in toggleTsunami
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      if (n.ragdoll || n.onRoof || !n.floodTarget) continue;
+      const l = n.floodTarget;
+      const dx = l.x - n.group.position.x, dz = l.z - n.group.position.z;
+      const d = Math.sqrt(dx*dx+dz*dz);
+      if (d > 0.65) { n.onLadder = false; n.vx = (dx/d)*7; n.vz = (dz/d)*7; }
+      else {
+        n.onLadder = true; n.vx = 0; n.vz = 0;
+        n.group.position.x = l.x; n.group.position.z = l.z;
+        n.group.position.y = Math.min(l.h, n.group.position.y + 8*dt);
+        if (n.group.position.y >= l.h - 0.1) { n.onRoof = true; n.onLadder = false; n.group.position.y = l.h; }
+      }
+    }
+  }
+
+  // Tsunami button label
+  const tp = char.root.position;
+  const tdx = tp.x - tsunamiBtnGroup.position.x, tdz = tp.z - tsunamiBtnGroup.position.z;
+  if (Math.sqrt(tdx*tdx+tdz*tdz) < 3.5 && !isRagdoll) {
+    tsunamiBtnGroup.getWorldPosition(_v3);
+    _v3.y += 1.8;
+    const tproj = _v3.clone().project(camera);
+    const hw3 = renderer.domElement.clientWidth/2, hh3 = renderer.domElement.clientHeight/2;
+    tsunamiLabel.style.left = (tproj.x*hw3+hw3-55)+'px';
+    tsunamiLabel.style.top  = (-tproj.y*hh3+hh3-20)+'px';
+    tsunamiLabel.style.display = 'block';
+    tsunamiLabel.textContent = '[E] ' + (tsunamiActive ? 'STOP TSUNAMI' : 'TSUNAMI');
+  } else { tsunamiLabel.style.display = 'none'; }
 
   // PVP button label
   const bp = char.root.position;
