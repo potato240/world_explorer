@@ -1397,59 +1397,74 @@ function animate() {
   } else { pvpLabel.style.display = 'none'; }
 
   // Camera
-  if (isFirstPerson && !inCar && !isRagdoll) {
+  if (isFirstPerson && !inCar) {
     char.root.visible = false;
-    // Emote camera offsets
-    let fpBobY = 0, fpRoll = 0, fpPitchOff = 0;
-    if (currentEmote === 'dance') {
-      fpBobY = Math.abs(Math.sin(emoteTime*6))*0.18;
-      fpRoll = Math.sin(emoteTime*3)*0.09;
-      fpPitchOff = Math.sin(emoteTime*6)*0.06;
-    } else if (currentEmote === 'cheer') {
-      fpBobY = Math.abs(Math.sin(emoteTime*5))*0.1;
-      fpPitchOff = -Math.abs(Math.sin(emoteTime*5))*0.07;
-    } else if (currentEmote === 'wave') {
-      fpRoll = Math.sin(emoteTime*10)*0.04;
-    } else if (currentEmote === 'sit') {
-      fpBobY = -0.35;
+    if (isRagdoll) {
+      // Track the character's tumbling head
+      const headOff = new THREE.Vector3(0, 1.55, 0).applyEuler(char.root.rotation);
+      const headPos = char.root.position.clone().add(headOff);
+      const fwdDir = new THREE.Vector3(0, 0, 1).applyEuler(char.root.rotation);
+      const upDir  = new THREE.Vector3(0, 1, 0).applyEuler(char.root.rotation);
+      camera.up.copy(upDir);
+      camera.position.copy(headPos);
+      camera.lookAt(headPos.x + fwdDir.x*10, headPos.y + fwdDir.y*10, headPos.z + fwdDir.z*10);
+      renderer.render(scene, camera);
+    } else {
+      camera.up.set(0, 1, 0);
+      // Emote camera offsets
+      let fpBobY = 0, fpRoll = 0, fpPitchOff = 0;
+      if (currentEmote === 'dance') {
+        fpBobY = Math.abs(Math.sin(emoteTime*6))*0.18;
+        fpRoll = Math.sin(emoteTime*3)*0.09;
+        fpPitchOff = Math.sin(emoteTime*6)*0.06;
+      } else if (currentEmote === 'cheer') {
+        fpBobY = Math.abs(Math.sin(emoteTime*5))*0.1;
+        fpPitchOff = -Math.abs(Math.sin(emoteTime*5))*0.07;
+      } else if (currentEmote === 'wave') {
+        fpRoll = Math.sin(emoteTime*10)*0.04;
+      } else if (currentEmote === 'sit') {
+        fpBobY = -0.35;
+      }
+      const eyeY = char.root.position.y + 1.78 + fpBobY;
+      camera.position.set(char.root.position.x, eyeY, char.root.position.z);
+      const pitch = camPitch + fpPitchOff;
+      camera.lookAt(
+        char.root.position.x - Math.sin(camYaw)*Math.cos(pitch)*10,
+        eyeY + Math.sin(pitch)*10,
+        char.root.position.z - Math.cos(camYaw)*Math.cos(pitch)*10
+      );
+      camera.rotation.z += fpRoll;
+      // Sync viewmodel colours to chosen character colours
+      vmSkinMat.color.copy(char.mats.skinMat.color);
+      vmShirtMat.color.copy(char.mats.shirtMat.color);
+      // Animate viewmodel arms
+      const ws = Math.sin(walkCycle);
+      vmLeftArm.position.set(-0.3 + ws*0.03, -0.42 + Math.abs(ws)*0.025, -0.58);
+      vmRightArm.position.set(0.3 - ws*0.03, -0.42 + Math.abs(ws)*0.025, -0.58);
+      vmLeftArm.rotation.x  =  ws*0.14;
+      vmRightArm.rotation.x = -ws*0.14 + (slapTime>0 ? -Math.PI*0.75*Math.sin((1-slapTime/0.5)*Math.PI) : 0);
+      vmLeftArm.rotation.z = 0; vmRightArm.rotation.z = 0;
+      if (currentEmote === 'wave') {
+        vmRightArm.rotation.x = -1.1 + Math.sin(emoteTime*10)*0.45;
+        vmRightArm.position.y = -0.18;
+      } else if (currentEmote === 'cheer') {
+        vmLeftArm.rotation.x = -1.0 - Math.abs(Math.sin(emoteTime*5))*0.5;
+        vmRightArm.rotation.x = -1.0 - Math.abs(Math.sin(emoteTime*5))*0.5;
+        vmLeftArm.position.y = -0.2; vmRightArm.position.y = -0.2;
+      } else if (currentEmote === 'dance') {
+        vmLeftArm.rotation.x  =  Math.sin(emoteTime*6)*1.1;
+        vmRightArm.rotation.x = -Math.sin(emoteTime*6)*1.1;
+        vmLeftArm.rotation.z  =  0.3+Math.sin(emoteTime*6)*0.5;
+        vmRightArm.rotation.z = -0.3-Math.sin(emoteTime*6)*0.5;
+      }
+      renderer.render(scene, camera);
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      renderer.render(vmScene, vmCamera);
+      renderer.autoClear = true;
     }
-    const eyeY = char.root.position.y + 1.78 + fpBobY;
-    camera.position.set(char.root.position.x, eyeY, char.root.position.z);
-    const pitch = camPitch + fpPitchOff;
-    camera.lookAt(
-      char.root.position.x - Math.sin(camYaw)*Math.cos(pitch)*10,
-      eyeY + Math.sin(pitch)*10,
-      char.root.position.z - Math.cos(camYaw)*Math.cos(pitch)*10
-    );
-    camera.rotation.z += fpRoll;
-    // Sync viewmodel colours to chosen character colours
-    vmSkinMat.color.copy(char.mats.skinMat.color);
-    vmShirtMat.color.copy(char.mats.shirtMat.color);
-    // Animate viewmodel arms
-    const ws = Math.sin(walkCycle);
-    vmLeftArm.position.set(-0.3 + ws*0.03, -0.42 + Math.abs(ws)*0.025, -0.58);
-    vmRightArm.position.set(0.3 - ws*0.03, -0.42 + Math.abs(ws)*0.025, -0.58);
-    vmLeftArm.rotation.x  =  ws*0.14 + (slapTime>0 ? 0 : 0);
-    vmRightArm.rotation.x = -ws*0.14 + (slapTime>0 ? -Math.PI*0.75*Math.sin((1-slapTime/0.5)*Math.PI) : 0);
-    if (currentEmote === 'wave') {
-      vmRightArm.rotation.x = -1.1 + Math.sin(emoteTime*10)*0.45;
-      vmRightArm.position.y = -0.18;
-    } else if (currentEmote === 'cheer') {
-      vmLeftArm.rotation.x = -1.0 - Math.abs(Math.sin(emoteTime*5))*0.5;
-      vmRightArm.rotation.x = -1.0 - Math.abs(Math.sin(emoteTime*5))*0.5;
-      vmLeftArm.position.y = -0.2; vmRightArm.position.y = -0.2;
-    } else if (currentEmote === 'dance') {
-      vmLeftArm.rotation.x  =  Math.sin(emoteTime*6)*1.1;
-      vmRightArm.rotation.x = -Math.sin(emoteTime*6)*1.1;
-      vmLeftArm.rotation.z  =  0.3+Math.sin(emoteTime*6)*0.5;
-      vmRightArm.rotation.z = -0.3-Math.sin(emoteTime*6)*0.5;
-    }
-    renderer.render(scene, camera);
-    renderer.autoClear = false;
-    renderer.clearDepth();
-    renderer.render(vmScene, vmCamera);
-    renderer.autoClear = true;
   } else {
+    camera.up.set(0, 1, 0);
     char.root.visible = !inCar;
     const focus = inCar ? carObj.group.position : char.root.position;
     _v3.set(focus.x+Math.sin(camYaw)*camDist, focus.y+camHeight, focus.z+Math.cos(camYaw)*camDist);
