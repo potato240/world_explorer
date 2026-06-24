@@ -352,6 +352,32 @@ const carObj = createCar(0xff4444);
 carObj.group.position.set(0, 0, -3);
 scene.add(carObj.group);
 
+// Flood button near spawn
+const floodBtnGroup = new THREE.Group();
+floodBtnGroup.position.set(-8, 0, 0);
+const floodPed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+floodPed.position.y = 0.5; floodBtnGroup.add(floodPed);
+const floodBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0x0044ff }));
+floodBtnMesh.position.y = 1.17; floodBtnGroup.add(floodBtnMesh);
+scene.add(floodBtnGroup);
+const floodLabel = document.createElement('div');
+floodLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+document.body.appendChild(floodLabel);
+
+// Flood countdown UI
+const floodUI = document.createElement('div');
+floodUI.style.cssText = 'position:absolute;top:60px;left:50%;transform:translateX(-50%);color:#00cfff;font:bold 28px monospace;text-shadow:0 0 12px #00cfff,0 2px 4px #000;display:none;pointer-events:none';
+document.body.appendChild(floodUI);
+
+// Water mesh
+const waterMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(1000, 1000),
+  new THREE.MeshLambertMaterial({ color: 0x0066cc, transparent: true, opacity: 0.72 })
+);
+waterMesh.rotation.x = -Math.PI / 2;
+waterMesh.position.y = -50;
+scene.add(waterMesh);
+
 // PVP Frenzy button near spawn
 const pvpBtnGroup = new THREE.Group();
 pvpBtnGroup.position.set(8, 0, 0);
@@ -431,6 +457,7 @@ let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
 let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
 let pvpFrenzy = false, playerTeam = 0;
+let floodActive = false, floodCountdown = 0, waterLevel = -50;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -503,7 +530,10 @@ window.addEventListener('keydown', function(e) {
   if (e.code === 'KeyE') {
     const pp = char.root.position;
     const bx = pp.x - pvpBtnGroup.position.x, bz = pp.z - pvpBtnGroup.position.z;
-    if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP(); else tryEnterExit();
+    const fx = pp.x - floodBtnGroup.position.x, fz = pp.z - floodBtnGroup.position.z;
+    if (!isRagdoll && Math.sqrt(fx*fx+fz*fz) < 3.5) toggleFlood();
+    else if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP();
+    else tryEnterExit();
   }
   if (e.code === 'KeyQ') {
     if (heldNPC) {
@@ -596,6 +626,35 @@ function toggleRagdoll() {
     Object.values(rdLimbs).forEach(function(l) { l.angVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*6,(Math.random()-0.5)*10); });
     status.textContent = 'Ragdoll!';
   } else { resetPose(); status.textContent = 'On foot'; }
+}
+
+function toggleFlood() {
+  if (floodActive) {
+    floodActive = false; floodCountdown = 0; waterLevel = -50;
+    waterMesh.position.y = -50;
+    floodBtnMesh.material.color.setHex(0x0044ff);
+    floodUI.style.display = 'none';
+    // Reset NPC flood state
+    for (let i = 0; i < npcs.length; i++) { npcs[i].floodTarget = null; npcs[i].onRoof = false; }
+  } else {
+    floodActive = true; floodCountdown = 30;
+    floodBtnMesh.material.color.setHex(0xff8800);
+    floodUI.style.display = 'block';
+    // Pre-assign each NPC a tall building to flee to
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      const nx = n.group.position.x, nz = n.group.position.z;
+      let best = null, bestScore = -1;
+      for (let k = 0; k < colliders.length; k++) {
+        const c = colliders[k];
+        if (c.h < 10) continue;
+        const dx = c.x - nx, dz = c.z - nz;
+        const score = c.h / (Math.sqrt(dx*dx+dz*dz) + 1);
+        if (score > bestScore) { bestScore = score; best = c; }
+      }
+      n.floodTarget = best; n.onRoof = false;
+    }
+  }
 }
 
 function togglePVP() {
@@ -1006,6 +1065,70 @@ function animate() {
       heldNPC.char.legL.rotation.set(0,0,0); heldNPC.char.legR.rotation.set(0,0,0);
     }
   }
+
+  // Flood logic
+  if (floodActive) {
+    if (floodCountdown > 0) {
+      floodCountdown -= dt;
+      const secs = Math.ceil(floodCountdown);
+      floodUI.textContent = '🌊 FLOOD IN ' + secs + 's — GET TO HIGH GROUND!';
+      floodUI.style.color = secs <= 10 ? '#ff4400' : '#00cfff';
+    } else {
+      // Water rises to ~18 units over 20 seconds then holds
+      waterLevel = Math.min(18, waterLevel + dt * 0.9);
+      waterMesh.position.y = waterLevel;
+      floodUI.textContent = '🌊 FLOOD — water: ' + waterLevel.toFixed(1) + 'm';
+      floodUI.style.color = '#00cfff';
+
+      // Drown player
+      if (char.root.position.y < waterLevel - 0.5 && !isRagdoll) {
+        isRagdoll = true;
+        rdVel.set((Math.random()-0.5)*6, 8, (Math.random()-0.5)*6);
+        rdAngVel.set((Math.random()-0.5)*8,(Math.random()-0.5)*6,(Math.random()-0.5)*8);
+      }
+      // Drown NPCs below water
+      for (let i = 0; i < npcs.length; i++) {
+        const n = npcs[i];
+        if (!n.ragdoll && !n.onRoof && n.group.position.y < waterLevel - 0.5) {
+          n.ragdoll = true;
+          n.rvx = (Math.random()-0.5)*5; n.rvy = 6; n.rvz = (Math.random()-0.5)*5;
+          n.rax = (Math.random()-0.5)*10; n.ray = (Math.random()-0.5)*8; n.raz = (Math.random()-0.5)*10;
+        }
+      }
+    }
+
+    // NPC flood AI — run to assigned tall building
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      if (n.ragdoll || n.onRoof || !n.floodTarget) continue;
+      const c = n.floodTarget;
+      const dx = c.x - n.group.position.x, dz = c.z - n.group.position.z;
+      const d = Math.sqrt(dx*dx+dz*dz);
+      if (d < 1.5) {
+        // Reached building — snap to roof
+        n.group.position.y = c.h;
+        n.onRoof = true;
+        n.vx = 0; n.vz = 0;
+      } else {
+        // Override wander with flee-to-roof movement
+        n.vx = (dx/d) * 6; n.vz = (dz/d) * 6;
+      }
+    }
+  }
+
+  // Flood button label
+  const fp = char.root.position;
+  const fdx = fp.x - floodBtnGroup.position.x, fdz = fp.z - floodBtnGroup.position.z;
+  if (Math.sqrt(fdx*fdx+fdz*fdz) < 3.5 && !isRagdoll) {
+    floodBtnGroup.getWorldPosition(_v3);
+    _v3.y += 1.8;
+    const fproj = _v3.clone().project(camera);
+    const hw2 = renderer.domElement.clientWidth/2, hh2 = renderer.domElement.clientHeight/2;
+    floodLabel.style.left = (fproj.x*hw2+hw2-50)+'px';
+    floodLabel.style.top  = (-fproj.y*hh2+hh2-20)+'px';
+    floodLabel.style.display = 'block';
+    floodLabel.textContent = '[E] ' + (floodActive ? 'STOP FLOOD' : 'TRIGGER FLOOD');
+  } else { floodLabel.style.display = 'none'; }
 
   // PVP button label
   const bp = char.root.position;
