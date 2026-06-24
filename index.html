@@ -72,6 +72,7 @@
 <div id="ui">
   <button class="btn" id="ragdollBtn" style="background:#e74c3c">Ragdoll</button>
   <button class="btn" id="carBtn" style="background:#2980b9">Enter Car</button>
+  <button class="btn" id="slapBtn" style="background:#e67e22">👋 SLAP</button>
   <button class="btn emote-btn" data-emote="wave" style="background:#8e44ad">Wave</button>
   <button class="btn emote-btn" data-emote="dance" style="background:#16a085">Dance</button>
   <button class="btn emote-btn" data-emote="cheer" style="background:#d35400">Cheer</button>
@@ -371,7 +372,9 @@ function makeNPCPerson(x, z) {
   });
   g.position.set(x, 0, z);
   scene.add(g);
-  return { group: g, vx: (Math.random()-0.5)*3, vz: (Math.random()-0.5)*3, timer: Math.random()*3, walk: 0 };
+  return { group: g, vx: (Math.random()-0.5)*3, vz: (Math.random()-0.5)*3, timer: Math.random()*3, walk: 0,
+    ragdoll: false, rvx: 0, rvy: 0, rvz: 0, rax: 0, ray: 0, raz: 0,
+    limbVx: [0,0,0,0], limbVz: [0,0,0,0] };
 }
 
 function makeNPCCar(roadVal, axis) {
@@ -522,6 +525,23 @@ window.addEventListener('mousemove', function(e) {
 
 // Buttons
 document.getElementById('ragdollBtn').addEventListener('click', toggleRagdoll);
+document.getElementById('slapBtn').addEventListener('click', function() {
+  const pp = char.root.position;
+  for (let i = 0; i < npcs.length; i++) {
+    const n = npcs[i];
+    const dx = n.group.position.x - pp.x, dz = n.group.position.z - pp.z;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    if (dist < 6) {
+      n.ragdoll = true;
+      const force = (6 - dist) * 3 + 4;
+      const nx2 = dist > 0.1 ? dx/dist : Math.random()-0.5;
+      const nz2 = dist > 0.1 ? dz/dist : Math.random()-0.5;
+      n.rvx = nx2 * force; n.rvy = 6 + Math.random()*4; n.rvz = nz2 * force;
+      n.rax = (Math.random()-0.5)*14; n.ray = (Math.random()-0.5)*10; n.raz = (Math.random()-0.5)*14;
+      for (let j = 0; j < 4; j++) { n.limbVx[j] = (Math.random()-0.5)*18; n.limbVz[j] = (Math.random()-0.5)*12; }
+    }
+  }
+});
 document.getElementById('carBtn').addEventListener('click', tryEnterExit);
 document.querySelectorAll('.emote-btn').forEach(function(btn) {
   btn.addEventListener('click', function(e) { e.stopPropagation(); playEmote(btn.dataset.emote); });
@@ -740,29 +760,53 @@ function animate() {
   // NPC people
   for (let i = 0; i < npcs.length; i++) {
     const n = npcs[i];
-    n.timer -= dt;
-    if (n.timer <= 0) {
-      n.timer = 2 + Math.random()*3;
-      const ang = Math.random()*Math.PI*2;
-      const spd = 1.5 + Math.random()*2;
-      n.vx = Math.sin(ang)*spd; n.vz = Math.cos(ang)*spd;
+    const ch = n.group.children;
+    if (n.ragdoll) {
+      // Ragdoll physics
+      n.rvy -= 22 * dt;
+      const rnx = n.group.position.x + n.rvx*dt;
+      const rnz = n.group.position.z + n.rvz*dt;
+      if (!checkColliders(rnx, n.group.position.z, 0.4)) n.group.position.x = rnx; else n.rvx *= -0.4;
+      if (!checkColliders(n.group.position.x, rnz, 0.4)) n.group.position.z = rnz; else n.rvz *= -0.4;
+      n.group.position.y += n.rvy * dt;
+      if (n.group.position.y < 0) {
+        n.group.position.y = 0; n.rvy = Math.abs(n.rvy)*0.25;
+        n.rvx *= 0.6; n.rvz *= 0.6; n.rax *= 0.6; n.raz *= 0.6;
+        if (Math.abs(n.rvy) < 0.5 && Math.abs(n.rvx) < 0.3) n.ragdoll = false;
+      }
+      n.group.rotation.x += n.rax*dt; n.group.rotation.y += n.ray*dt; n.group.rotation.z += n.raz*dt;
+      n.rax *= 0.97; n.ray *= 0.97; n.raz *= 0.97;
+      const grav = 18, damp = 3;
+      for (let j = 0; j < 4; j++) {
+        const limb = ch[j+3]; if (!limb) continue;
+        n.limbVx[j] += (-grav*Math.sin(limb.rotation.x)*0.3 - damp*n.limbVx[j])*dt;
+        n.limbVz[j] += (-grav*Math.sin(limb.rotation.z)*0.2 - damp*n.limbVz[j])*dt;
+        limb.rotation.x += n.limbVx[j]*dt; limb.rotation.z += n.limbVz[j]*dt;
+      }
+    } else {
+      // Reset upright if just recovered
+      n.group.rotation.x *= 0.85; n.group.rotation.z *= 0.85;
+      n.timer -= dt;
+      if (n.timer <= 0) {
+        n.timer = 2 + Math.random()*3;
+        const ang = Math.random()*Math.PI*2;
+        const spd = 1.5 + Math.random()*2;
+        n.vx = Math.sin(ang)*spd; n.vz = Math.cos(ang)*spd;
+      }
+      const nx = n.group.position.x + n.vx*dt;
+      const nz = n.group.position.z + n.vz*dt;
+      if (!checkColliders(nx, n.group.position.z, 0.4)) n.group.position.x = nx; else { n.vx *= -1; n.timer = 0; }
+      if (!checkColliders(n.group.position.x, nz, 0.4)) n.group.position.z = nz; else { n.vz *= -1; n.timer = 0; }
+      if (Math.abs(n.group.position.x) > 190) n.vx *= -1;
+      if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
+      n.walk += dt*6;
+      const wv = Math.sin(n.walk);
+      if (ch[3]) ch[3].rotation.x = wv*0.6;
+      if (ch[4]) ch[4].rotation.x = -wv*0.6;
+      if (ch[5]) ch[5].rotation.x = -wv*0.7;
+      if (ch[6]) ch[6].rotation.x = wv*0.7;
+      n.group.rotation.y = Math.atan2(n.vx, n.vz);
     }
-    const nx = n.group.position.x + n.vx*dt;
-    const nz = n.group.position.z + n.vz*dt;
-    if (!checkColliders(nx, n.group.position.z, 0.4)) n.group.position.x = nx;
-    else { n.vx *= -1; n.timer = 0; }
-    if (!checkColliders(n.group.position.x, nz, 0.4)) n.group.position.z = nz;
-    else { n.vz *= -1; n.timer = 0; }
-    if (Math.abs(n.group.position.x) > 190) n.vx *= -1;
-    if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
-    n.walk += dt*6;
-    const wv = Math.sin(n.walk);
-    const children = n.group.children;
-    if (children[3]) children[3].rotation.x = wv*0.6;
-    if (children[4]) children[4].rotation.x = -wv*0.6;
-    if (children[5]) children[5].rotation.x = -wv*0.7;
-    if (children[6]) children[6].rotation.x = wv*0.7;
-    n.group.rotation.y = Math.atan2(n.vx, n.vz);
   }
 
   // NPC cars
