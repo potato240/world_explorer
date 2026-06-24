@@ -654,7 +654,7 @@ setTimeout(function() {
   const leafMat = new THREE.MeshLambertMaterial({ color: 0x2d7a2d });
   for (let i = 0; i < 150; i++) {
     const tx = (Math.random()-0.5)*380, tz = (Math.random()-0.5)*380;
-    if (checkColliders(tx, tz, 3)) continue;
+    if (checkColliders(tx, tz, 3) || overlapsRoad(tx, tz, 1.5, 1.5)) continue;
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2, 6), trunkMat);
     trunk.position.set(tx, 1, tz); scene.add(trunk);
     const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.2+Math.random(), 7, 7), leafMat);
