@@ -494,6 +494,7 @@ buildHatTypes('sw-hattype');
 window.addEventListener('keydown', function(e) {
   keys[e.code] = true;
   if (e.code === 'KeyR') toggleRagdoll();
+  if (e.code === 'KeyF') document.getElementById('slapBtn').click();
   if (e.code === 'KeyE') tryEnterExit();
   const ek = { Digit1:'wave', Digit2:'dance', Digit3:'cheer', Digit4:'spin', Digit5:'sit' };
   if (ek[e.code] && !inCar && !isRagdoll) playEmote(ek[e.code]);
