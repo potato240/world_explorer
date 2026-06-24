@@ -617,7 +617,8 @@ function togglePVP() {
   } else {
     for (let i = 0; i < npcs.length; i++) {
       const n = npcs[i];
-      if (n.frenzyHeld) n.frenzyHeld = null;
+      if (n.frenzyHeld) { n.frenzyHeld.isHeld = false; n.frenzyHeld = null; }
+      n.isHeld = false;
       if (n.teamMarker) { n.group.remove(n.teamMarker); n.teamMarker = null; }
       n.team = -1;
     }
@@ -883,7 +884,7 @@ function animate() {
           n.frenzyHeld.group.position.set(n.group.position.x - Math.sin(n.group.rotation.y)*1.2, n.group.position.y+1.0, n.group.position.z - Math.cos(n.group.rotation.y)*1.2);
           n.frenzyHeld.group.rotation.set(0, n.group.rotation.y + Math.PI, 0);
           if (n.frenzyTimer <= 0) {
-            const fh = n.frenzyHeld; n.frenzyHeld = null;
+            const fh = n.frenzyHeld; n.frenzyHeld = null; fh.isHeld = false;
             fh.ragdoll = true;
             fh.rvx = -Math.sin(n.group.rotation.y)*20; fh.rvy = 10+Math.random()*4; fh.rvz = -Math.cos(n.group.rotation.y)*20;
             fh.rax = (Math.random()-0.5)*14; fh.ray = (Math.random()-0.5)*10; fh.raz = (Math.random()-0.5)*14;
@@ -902,9 +903,9 @@ function animate() {
               enemyNPC.rax = (Math.random()-0.5)*14; enemyNPC.ray = (Math.random()-0.5)*10; enemyNPC.raz = (Math.random()-0.5)*14;
             }
             n.frenzyTimer = 1.2 + Math.random()*0.8;
-          } else if (eDist < 3.2 && enemyNPC && !enemyNPC.ragdoll && n.frenzyTimer <= 0) {
+          } else if (eDist < 3.2 && enemyNPC && !enemyNPC.ragdoll && !enemyNPC.isHeld && n.frenzyTimer <= 0) {
             // Grab enemy
-            n.frenzyHeld = enemyNPC; enemyNPC.ragdoll = false;
+            n.frenzyHeld = enemyNPC; enemyNPC.ragdoll = false; enemyNPC.isHeld = true;
             n.frenzyTimer = 1.2 + Math.random()*0.6;
           } else {
             // Chase
