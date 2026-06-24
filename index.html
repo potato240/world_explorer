@@ -635,7 +635,7 @@ function toggleFlood() {
     floodBtnMesh.material.color.setHex(0x0044ff);
     floodUI.style.display = 'none';
     // Reset NPC flood state
-    for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; n.floodTarget = null; n.onRoof = false; n.onLadder = false; n.group.position.y = 0; }
+    for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; if (n.onRoof || n.onLadder) { n.onRoof = false; n.onLadder = false; n.descending = true; } else { n.floodTarget = null; } }
   } else {
     floodActive = true; floodCountdown = 30;
     floodBtnMesh.material.color.setHex(0xff8800);
@@ -921,7 +921,30 @@ function animate() {
       }
     } else {
       n.group.rotation.x *= 0.85; n.group.rotation.z *= 0.85;
-      if (pvpFrenzy) {
+      if (n.onRoof) {
+        n.vx = 0; n.vz = 0;
+        if (n.floodTarget) n.group.position.y = n.floodTarget.h;
+        n.walk += dt*1.5;
+        nc.armL.rotation.x *= 0.85; nc.armR.rotation.x *= 0.85;
+        nc.legL.rotation.x *= 0.85; nc.legR.rotation.x *= 0.85;
+      } else if (n.descending && n.floodTarget) {
+        const l = n.floodTarget;
+        const ddx = l.x - n.group.position.x, ddz = l.z - n.group.position.z;
+        const dd = Math.sqrt(ddx*ddx+ddz*ddz);
+        if (dd > 0.65) {
+          n.vx = (ddx/dd)*5; n.vz = (ddz/dd)*5;
+        } else {
+          n.vx = 0; n.vz = 0;
+          n.group.position.x = l.x; n.group.position.z = l.z;
+          n.group.position.y = Math.max(0, n.group.position.y - 5*dt);
+          if (n.group.position.y <= 0) { n.descending = false; n.floodTarget = null; }
+        }
+        n.walk += dt*6;
+        const wv2 = Math.sin(n.walk);
+        nc.armL.rotation.x = wv2*0.7; nc.armR.rotation.x = -wv2*0.7;
+        nc.legL.rotation.x = -wv2*0.85; nc.legR.rotation.x = wv2*0.85;
+        n.group.rotation.y = Math.atan2(n.vx || ddx, n.vz || ddz);
+      } else if (pvpFrenzy) {
         // Find nearest enemy (NPC or player)
         let ex = 0, ez = 0, eDist = 999, enemyNPC = null, enemyIsPlayer = false;
         for (let j = 0; j < npcs.length; j++) {
@@ -993,15 +1016,17 @@ function animate() {
       nc.legL.rotation.x = -wv*0.85; nc.legR.rotation.x = wv*0.85;
       nc.body.position.y = 1.08 + Math.abs(Math.sin(n.walk*2))*0.04;
       n.group.rotation.y = Math.atan2(n.vx, n.vz);
-      // Depenetration
-      const npx = n.group.position.x, npz = n.group.position.z;
-      for (let k = 0; k < colliders.length; k++) {
-        const c = colliders[k];
-        const ox = c.hw + 0.4 - Math.abs(npx - c.x);
-        const oz = c.hd + 0.4 - Math.abs(npz - c.z);
-        if (ox > 0 && oz > 0) {
-          if (ox < oz) n.group.position.x += npx > c.x ? ox : -ox;
-          else n.group.position.z += npz > c.z ? oz : -oz;
+      // Depenetration (ground level only)
+      if (n.group.position.y < 1) {
+        const npx = n.group.position.x, npz = n.group.position.z;
+        for (let k = 0; k < colliders.length; k++) {
+          const c = colliders[k];
+          const ox = c.hw + 0.4 - Math.abs(npx - c.x);
+          const oz = c.hd + 0.4 - Math.abs(npz - c.z);
+          if (ox > 0 && oz > 0) {
+            if (ox < oz) n.group.position.x += npx > c.x ? ox : -ox;
+            else n.group.position.z += npz > c.z ? oz : -oz;
+          }
         }
       }
     }
@@ -1081,7 +1106,7 @@ function animate() {
         floodPeakTimer -= dt;
       } else {
         waterLevel = Math.max(-0.5, waterLevel - dt * 1.2);
-        if (waterLevel <= -0.5) { floodActive = false; floodPeakTimer = -1; floodBtnMesh.material.color.setHex(0x0044ff); floodUI.style.display = 'none'; for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; n.floodTarget = null; n.onRoof = false; n.onLadder = false; n.group.position.y = 0; } }
+        if (waterLevel <= -0.5) { floodActive = false; floodPeakTimer = -1; floodBtnMesh.material.color.setHex(0x0044ff); floodUI.style.display = 'none'; for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; if (n.onRoof || n.onLadder) { n.onRoof = false; n.onLadder = false; n.descending = true; } else { n.floodTarget = null; } } }
       }
       waterMesh.position.y = waterLevel;
       const draining = floodPeakTimer === -1 && waterLevel < 18;
