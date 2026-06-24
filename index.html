@@ -457,7 +457,7 @@ let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
 let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
 let pvpFrenzy = false, playerTeam = 0;
-let floodActive = false, floodCountdown = 0, waterLevel = -50;
+let floodActive = false, floodCountdown = 0, waterLevel = -50, floodPeakTimer = -1;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -1074,10 +1074,18 @@ function animate() {
       floodUI.textContent = '🌊 FLOOD IN ' + secs + 's — GET TO HIGH GROUND!';
       floodUI.style.color = secs <= 10 ? '#ff4400' : '#00cfff';
     } else {
-      // Water rises to ~18 units over 20 seconds then holds
-      waterLevel = Math.min(18, waterLevel + dt * 0.9);
+      if (waterLevel < 18) {
+        waterLevel = Math.min(18, waterLevel + dt * 0.9);
+        if (waterLevel >= 18 && floodPeakTimer < 0) floodPeakTimer = 20;
+      } else if (floodPeakTimer > 0) {
+        floodPeakTimer -= dt;
+      } else {
+        waterLevel = Math.max(-50, waterLevel - dt * 1.2);
+        if (waterLevel <= -50) { floodActive = false; floodPeakTimer = -1; floodBtnMesh.material.color.setHex(0x0044ff); floodUI.style.display = 'none'; for (let i = 0; i < npcs.length; i++) { npcs[i].floodTarget = null; npcs[i].onRoof = false; } }
+      }
       waterMesh.position.y = waterLevel;
-      floodUI.textContent = '🌊 FLOOD — water: ' + waterLevel.toFixed(1) + 'm';
+      const draining = floodPeakTimer === -1 && waterLevel < 18;
+      floodUI.textContent = draining ? '🌊 DRAINING — ' + Math.max(0,waterLevel).toFixed(1) + 'm' : (floodPeakTimer > 0 ? '🌊 PEAK — draining in ' + Math.ceil(floodPeakTimer) + 's' : '🌊 FLOOD — ' + waterLevel.toFixed(1) + 'm');
       floodUI.style.color = '#00cfff';
 
       // Drown player
