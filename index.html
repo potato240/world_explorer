@@ -1099,9 +1099,9 @@ function animate() {
       floodUI.textContent = '🌊 FLOOD IN ' + secs + 's — GET TO HIGH GROUND!';
       floodUI.style.color = secs <= 10 ? '#ff4400' : '#00cfff';
     } else {
-      if (waterLevel < 18) {
+      if (floodPeakTimer === -1) {
         waterLevel = Math.min(18, waterLevel + dt * 0.9);
-        if (waterLevel >= 18 && floodPeakTimer < 0) floodPeakTimer = 10;
+        if (waterLevel >= 18) floodPeakTimer = 10;
       } else if (floodPeakTimer > 0) {
         floodPeakTimer -= dt;
       } else {
