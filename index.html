@@ -826,6 +826,34 @@ function animate() {
       if (nc.group.position.z < -200) nc.group.position.z = 200;
     }
     nc.wheels.forEach(function(w) { w.rotation.x += spd * 1.5; });
+
+    // Hit player
+    if (!isRagdoll && !inCar) {
+      const pp = char.root.position;
+      const cdx = pp.x - nc.group.position.x, cdz = pp.z - nc.group.position.z;
+      if (Math.abs(cdx) < 1.8 && Math.abs(cdz) < 1.8) {
+        isRagdoll = true;
+        const force = Math.abs(nc.spd) * 0.9 + 8;
+        const nd = nc.axis === 'x' ? new THREE.Vector3(Math.sign(nc.spd), 0, (Math.random()-0.5)*0.6)
+                                   : new THREE.Vector3((Math.random()-0.5)*0.6, 0, Math.sign(nc.spd));
+        rdVel.set(nd.x*force, 10+Math.random()*6, nd.z*force);
+        rdAngVel.set((Math.random()-0.5)*14, (Math.random()-0.5)*10, (Math.random()-0.5)*14);
+      }
+    }
+    // Hit NPCs
+    for (let j = 0; j < npcs.length; j++) {
+      const n = npcs[j];
+      if (n.ragdoll) continue;
+      const ndx = n.group.position.x - nc.group.position.x, ndz = n.group.position.z - nc.group.position.z;
+      if (Math.abs(ndx) < 1.6 && Math.abs(ndz) < 1.6) {
+        n.ragdoll = true;
+        const force = Math.abs(nc.spd) * 0.9 + 8;
+        const nd = nc.axis === 'x' ? new THREE.Vector3(Math.sign(nc.spd), 0, (Math.random()-0.5)*0.6)
+                                   : new THREE.Vector3((Math.random()-0.5)*0.6, 0, Math.sign(nc.spd));
+        n.rvx = nd.x*force; n.rvy = 10+Math.random()*6; n.rvz = nd.z*force;
+        n.rax = (Math.random()-0.5)*14; n.ray = (Math.random()-0.5)*10; n.raz = (Math.random()-0.5)*14;
+      }
+    }
   }
 
   // Camera
