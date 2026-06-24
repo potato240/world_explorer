@@ -1050,28 +1050,29 @@ function animate() {
           n.vx = Math.sin(ang)*spd; n.vz = Math.cos(ang)*spd;
         }
       }
-      const nx = n.group.position.x + n.vx*dt;
-      const nz = n.group.position.z + n.vz*dt;
-      if (!checkColliders(nx, n.group.position.z, 0.4)) n.group.position.x = nx; else { n.vx *= -1; n.timer = 0; }
-      if (!checkColliders(n.group.position.x, nz, 0.4)) n.group.position.z = nz; else { n.vz *= -1; n.timer = 0; }
-      if (Math.abs(n.group.position.x) > 190) n.vx *= -1;
-      if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
-      n.walk += dt*6;
-      const wv = Math.sin(n.walk);
-      nc.armL.rotation.x = wv*0.7; nc.armR.rotation.x = -wv*0.7;
-      nc.legL.rotation.x = -wv*0.85; nc.legR.rotation.x = wv*0.85;
-      nc.body.position.y = 1.08 + Math.abs(Math.sin(n.walk*2))*0.04;
-      n.group.rotation.y = Math.atan2(n.vx, n.vz);
-      // Depenetration (ground level only)
-      if (n.group.position.y < 1) {
-        const npx = n.group.position.x, npz = n.group.position.z;
-        for (let k = 0; k < colliders.length; k++) {
-          const c = colliders[k];
-          const ox = c.hw + 0.4 - Math.abs(npx - c.x);
-          const oz = c.hd + 0.4 - Math.abs(npz - c.z);
-          if (ox > 0 && oz > 0) {
-            if (ox < oz) n.group.position.x += npx > c.x ? ox : -ox;
-            else n.group.position.z += npz > c.z ? oz : -oz;
+      if (!n.onRoof) {
+        const nx = n.group.position.x + n.vx*dt;
+        const nz = n.group.position.z + n.vz*dt;
+        if (!checkColliders(nx, n.group.position.z, 0.4, n.group.position.y)) n.group.position.x = nx; else { n.vx *= -1; n.timer = 0; }
+        if (!checkColliders(n.group.position.x, nz, 0.4, n.group.position.y)) n.group.position.z = nz; else { n.vz *= -1; n.timer = 0; }
+        if (Math.abs(n.group.position.x) > 190) n.vx *= -1;
+        if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
+        n.walk += dt*6;
+        const wv = Math.sin(n.walk);
+        nc.armL.rotation.x = wv*0.7; nc.armR.rotation.x = -wv*0.7;
+        nc.legL.rotation.x = -wv*0.85; nc.legR.rotation.x = wv*0.85;
+        nc.body.position.y = 1.08 + Math.abs(Math.sin(n.walk*2))*0.04;
+        n.group.rotation.y = Math.atan2(n.vx, n.vz);
+        if (n.group.position.y < 1) {
+          const npx = n.group.position.x, npz = n.group.position.z;
+          for (let k = 0; k < colliders.length; k++) {
+            const c = colliders[k];
+            const ox = c.hw + 0.4 - Math.abs(npx - c.x);
+            const oz = c.hd + 0.4 - Math.abs(npz - c.z);
+            if (ox > 0 && oz > 0) {
+              if (ox < oz) n.group.position.x += npx > c.x ? ox : -ox;
+              else n.group.position.z += npz > c.z ? oz : -oz;
+            }
           }
         }
       }
