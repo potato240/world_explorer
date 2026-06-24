@@ -777,7 +777,13 @@ function animate() {
       if (n.group.position.y < 0) {
         n.group.position.y = 0; n.rvy = Math.abs(n.rvy)*0.25;
         n.rvx *= 0.6; n.rvz *= 0.6; n.rax *= 0.6; n.raz *= 0.6;
-        if (Math.abs(n.rvy) < 0.5 && Math.abs(n.rvx) < 0.3) n.ragdoll = false;
+        if (Math.abs(n.rvy) < 0.5 && Math.abs(n.rvx) < 0.3) {
+          n.ragdoll = false;
+          n.group.rotation.set(0, n.group.rotation.y, 0);
+          nc.armL.rotation.set(0,0,0); nc.armR.rotation.set(0,0,0);
+          nc.legL.rotation.set(0,0,0); nc.legR.rotation.set(0,0,0);
+          nc.body.position.y = 1.08;
+        }
       }
       n.group.rotation.x += n.rax*dt; n.group.rotation.y += n.ray*dt; n.group.rotation.z += n.raz*dt;
       n.rax *= 0.97; n.ray *= 0.97; n.raz *= 0.97;
