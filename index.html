@@ -529,6 +529,19 @@ function animate() {
     if (!checkColliders(char.root.position.x, nz, 0.45, rdY)) char.root.position.z = nz;
     else rdVel.z *= -0.4;
     char.root.position.y += rdVel.y * dt;
+    // Roof + ground landing
+    let rdFloor = 0;
+    const rpx = char.root.position.x, rpz = char.root.position.z;
+    for (let i = 0; i < colliders.length; i++) {
+      const c = colliders[i];
+      if (c.h && Math.abs(rpx-c.x)<c.hw-0.1 && Math.abs(rpz-c.z)<c.hd-0.1) {
+        if (char.root.position.y >= c.h - 0.6) rdFloor = Math.max(rdFloor, c.h);
+      }
+    }
+    if (char.root.position.y < rdFloor) {
+      char.root.position.y = rdFloor; rdVel.y = Math.abs(rdVel.y)*0.3;
+      rdVel.x *= 0.65; rdVel.z *= 0.65; rdAngVel.multiplyScalar(0.6);
+    }
     if (char.root.position.y < 0) {
       char.root.position.y = 0; rdVel.y = Math.abs(rdVel.y)*0.3;
       rdVel.x *= 0.65; rdVel.z *= 0.65; rdAngVel.multiplyScalar(0.6);
