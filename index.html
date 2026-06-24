@@ -416,7 +416,7 @@ const keys = {};
 let inCar = false, isRagdoll = false, walkCycle = 0;
 let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
-let currentEmote = null, emoteTime = 0, slapTime = 0;
+let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -487,6 +487,27 @@ window.addEventListener('keydown', function(e) {
   if (e.code === 'KeyR') toggleRagdoll();
   if (e.code === 'KeyF') document.getElementById('slapBtn').click();
   if (e.code === 'KeyE') tryEnterExit();
+  if (e.code === 'KeyQ') {
+    if (heldNPC) {
+      // Throw
+      const throwDir = new THREE.Vector3(-Math.sin(camYaw), 0.4, -Math.cos(camYaw)).normalize();
+      heldNPC.ragdoll = true;
+      heldNPC.rvx = throwDir.x * 22; heldNPC.rvy = throwDir.y * 18 + 8; heldNPC.rvz = throwDir.z * 22;
+      heldNPC.rax = (Math.random()-0.5)*16; heldNPC.ray = (Math.random()-0.5)*12; heldNPC.raz = (Math.random()-0.5)*16;
+      heldNPC = null;
+    } else if (!isRagdoll && !inCar) {
+      // Pick up nearest NPC within 3 units
+      const pp = char.root.position;
+      let best = null, bestDist = 3.5;
+      for (let i = 0; i < npcs.length; i++) {
+        const n = npcs[i]; if (n.ragdoll) continue;
+        const dx = n.group.position.x - pp.x, dz = n.group.position.z - pp.z;
+        const d = Math.sqrt(dx*dx + dz*dz);
+        if (d < bestDist) { bestDist = d; best = n; }
+      }
+      if (best) { heldNPC = best; heldNPC.ragdoll = false; }
+    }
+  }
   const ek = { Digit1:'wave', Digit2:'dance', Digit3:'cheer', Digit4:'spin', Digit5:'sit' };
   if (ek[e.code] && !inCar && !isRagdoll) playEmote(ek[e.code]);
   if (e.code === 'Space' && onGround && !inCar && !isRagdoll) {
@@ -859,6 +880,21 @@ function animate() {
         n.rvx = nd.x*force; n.rvy = 10+Math.random()*6; n.rvz = nd.z*force;
         n.rax = (Math.random()-0.5)*14; n.ray = (Math.random()-0.5)*10; n.raz = (Math.random()-0.5)*14;
       }
+    }
+  }
+
+  // Held NPC — carry in front of player
+  if (heldNPC) {
+    if (isRagdoll || inCar) { heldNPC = null; } else {
+      const pp = char.root.position;
+      heldNPC.group.position.set(
+        pp.x - Math.sin(camYaw) * 1.4,
+        pp.y + 1.0,
+        pp.z - Math.cos(camYaw) * 1.4
+      );
+      heldNPC.group.rotation.set(0, camYaw + Math.PI, 0);
+      heldNPC.char.armL.rotation.set(0,0,0); heldNPC.char.armR.rotation.set(0,0,0);
+      heldNPC.char.legL.rotation.set(0,0,0); heldNPC.char.legR.rotation.set(0,0,0);
     }
   }
 
