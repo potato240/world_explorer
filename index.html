@@ -352,6 +352,19 @@ const carObj = createCar(0xff4444);
 carObj.group.position.set(0, 0, -3);
 scene.add(carObj.group);
 
+// PVP Frenzy button near spawn
+const pvpBtnGroup = new THREE.Group();
+pvpBtnGroup.position.set(8, 0, 0);
+const pedestal = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+pedestal.position.y = 0.5; pvpBtnGroup.add(pedestal);
+const pvpBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0xff2200 }));
+pvpBtnMesh.position.y = 1.17; pvpBtnGroup.add(pvpBtnMesh);
+scene.add(pvpBtnGroup);
+const pvpLabel = document.createElement('div');
+pvpLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+pvpLabel.textContent = '[E] PVP FRENZY';
+document.body.appendChild(pvpLabel);
+
 // NPC helpers
 function makeNPCPerson(x, z) {
   const skinPalette = [0xffddb4,0xf4c76a,0xc68642,0x8d5524,0xfde8c0,0xe8b89a];
@@ -417,6 +430,7 @@ let inCar = false, isRagdoll = false, walkCycle = 0;
 let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
 let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
+let pvpFrenzy = false, playerTeam = 0;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -486,7 +500,11 @@ window.addEventListener('keydown', function(e) {
   keys[e.code] = true;
   if (e.code === 'KeyR') toggleRagdoll();
   if (e.code === 'KeyF') document.getElementById('slapBtn').click();
-  if (e.code === 'KeyE') tryEnterExit();
+  if (e.code === 'KeyE') {
+    const pp = char.root.position;
+    const bx = pp.x - pvpBtnGroup.position.x, bz = pp.z - pvpBtnGroup.position.z;
+    if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP(); else tryEnterExit();
+  }
   if (e.code === 'KeyQ') {
     if (heldNPC) {
       // Throw
@@ -578,6 +596,32 @@ function toggleRagdoll() {
     Object.values(rdLimbs).forEach(function(l) { l.angVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*6,(Math.random()-0.5)*10); });
     status.textContent = 'Ragdoll!';
   } else { resetPose(); status.textContent = 'On foot'; }
+}
+
+function togglePVP() {
+  pvpFrenzy = !pvpFrenzy;
+  pvpBtnMesh.material.color.setHex(pvpFrenzy ? 0x00ff44 : 0xff2200);
+  if (pvpFrenzy) {
+    playerTeam = 0;
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      n.team = i % 2;
+      n.frenzyHeld = null;
+      n.frenzyTimer = Math.random() * 1.5;
+      const markerMat = new THREE.MeshLambertMaterial({ color: n.team === 0 ? 0xff3300 : 0x0055ff });
+      const marker = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), markerMat);
+      marker.position.y = 2.35;
+      n.teamMarker = marker;
+      n.group.add(marker);
+    }
+  } else {
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      if (n.frenzyHeld) n.frenzyHeld = null;
+      if (n.teamMarker) { n.group.remove(n.teamMarker); n.teamMarker = null; }
+      n.team = -1;
+    }
+  }
 }
 
 function tryEnterExit() {
@@ -817,12 +861,65 @@ function animate() {
       }
     } else {
       n.group.rotation.x *= 0.85; n.group.rotation.z *= 0.85;
-      n.timer -= dt;
-      if (n.timer <= 0) {
-        n.timer = 2 + Math.random()*3;
-        const ang = Math.random()*Math.PI*2;
-        const spd = 1.5 + Math.random()*2;
-        n.vx = Math.sin(ang)*spd; n.vz = Math.cos(ang)*spd;
+      if (pvpFrenzy) {
+        // Find nearest enemy (NPC or player)
+        let ex = 0, ez = 0, eDist = 999, enemyNPC = null, enemyIsPlayer = false;
+        for (let j = 0; j < npcs.length; j++) {
+          if (j === i || npcs[j].team === n.team || npcs[j].ragdoll) continue;
+          const dx = npcs[j].group.position.x - n.group.position.x;
+          const dz = npcs[j].group.position.z - n.group.position.z;
+          const d = Math.sqrt(dx*dx+dz*dz);
+          if (d < eDist) { eDist = d; ex = dx; ez = dz; enemyNPC = npcs[j]; }
+        }
+        if (!isRagdoll && playerTeam !== n.team) {
+          const dx = char.root.position.x - n.group.position.x;
+          const dz = char.root.position.z - n.group.position.z;
+          const d = Math.sqrt(dx*dx+dz*dz);
+          if (d < eDist) { eDist = d; ex = dx; ez = dz; enemyNPC = null; enemyIsPlayer = true; }
+        }
+        n.frenzyTimer = (n.frenzyTimer || 0) - dt;
+        if (n.frenzyHeld) {
+          // Carry held NPC, throw after delay
+          n.frenzyHeld.group.position.set(n.group.position.x - Math.sin(n.group.rotation.y)*1.2, n.group.position.y+1.0, n.group.position.z - Math.cos(n.group.rotation.y)*1.2);
+          n.frenzyHeld.group.rotation.set(0, n.group.rotation.y + Math.PI, 0);
+          if (n.frenzyTimer <= 0) {
+            const fh = n.frenzyHeld; n.frenzyHeld = null;
+            fh.ragdoll = true;
+            fh.rvx = -Math.sin(n.group.rotation.y)*20; fh.rvy = 10+Math.random()*4; fh.rvz = -Math.cos(n.group.rotation.y)*20;
+            fh.rax = (Math.random()-0.5)*14; fh.ray = (Math.random()-0.5)*10; fh.raz = (Math.random()-0.5)*14;
+            n.frenzyTimer = 1.5 + Math.random();
+          }
+        } else if (eDist < 1000) {
+          if (eDist < 2.2 && n.frenzyTimer <= 0) {
+            // Slap enemy
+            if (enemyIsPlayer) {
+              isRagdoll = true;
+              rdVel.set(-Math.sin(n.group.rotation.y)*13, 9, -Math.cos(n.group.rotation.y)*13);
+              rdAngVel.set((Math.random()-0.5)*10,(Math.random()-0.5)*8,(Math.random()-0.5)*10);
+            } else if (enemyNPC) {
+              enemyNPC.ragdoll = true;
+              enemyNPC.rvx = -Math.sin(n.group.rotation.y)*13; enemyNPC.rvy = 9; enemyNPC.rvz = -Math.cos(n.group.rotation.y)*13;
+              enemyNPC.rax = (Math.random()-0.5)*14; enemyNPC.ray = (Math.random()-0.5)*10; enemyNPC.raz = (Math.random()-0.5)*14;
+            }
+            n.frenzyTimer = 1.2 + Math.random()*0.8;
+          } else if (eDist < 3.2 && enemyNPC && !enemyNPC.ragdoll && n.frenzyTimer <= 0) {
+            // Grab enemy
+            n.frenzyHeld = enemyNPC; enemyNPC.ragdoll = false;
+            n.frenzyTimer = 1.2 + Math.random()*0.6;
+          } else {
+            // Chase
+            const spd = 4;
+            n.vx = (ex/eDist)*spd; n.vz = (ez/eDist)*spd;
+          }
+        }
+      } else {
+        n.timer -= dt;
+        if (n.timer <= 0) {
+          n.timer = 2 + Math.random()*3;
+          const ang = Math.random()*Math.PI*2;
+          const spd = 1.5 + Math.random()*2;
+          n.vx = Math.sin(ang)*spd; n.vz = Math.cos(ang)*spd;
+        }
       }
       const nx = n.group.position.x + n.vx*dt;
       const nz = n.group.position.z + n.vz*dt;
@@ -908,6 +1005,20 @@ function animate() {
       heldNPC.char.legL.rotation.set(0,0,0); heldNPC.char.legR.rotation.set(0,0,0);
     }
   }
+
+  // PVP button label
+  const bp = char.root.position;
+  const bdx = bp.x - pvpBtnGroup.position.x, bdz = bp.z - pvpBtnGroup.position.z;
+  if (Math.sqrt(bdx*bdx+bdz*bdz) < 3.5 && !isRagdoll) {
+    pvpBtnGroup.getWorldPosition(_v3);
+    _v3.y += 1.8;
+    const proj = _v3.clone().project(camera);
+    const hw = renderer.domElement.clientWidth/2, hh = renderer.domElement.clientHeight/2;
+    pvpLabel.style.left = (proj.x*hw+hw-40)+'px';
+    pvpLabel.style.top  = (-proj.y*hh+hh-20)+'px';
+    pvpLabel.style.display = 'block';
+    pvpLabel.textContent = '[E] ' + (pvpFrenzy ? 'STOP FRENZY' : 'PVP FRENZY');
+  } else { pvpLabel.style.display = 'none'; }
 
   // Camera
   const focus = inCar ? carObj.group.position : char.root.position;
