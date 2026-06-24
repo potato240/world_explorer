@@ -457,7 +457,7 @@ let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
 let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
 let pvpFrenzy = false, playerTeam = 0;
-let floodActive = false, floodCountdown = 0, waterLevel = -50, floodPeakTimer = -1;
+let floodActive = false, floodCountdown = 0, waterLevel = -0.5, floodPeakTimer = -1;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -630,7 +630,7 @@ function toggleRagdoll() {
 
 function toggleFlood() {
   if (floodActive) {
-    floodActive = false; floodCountdown = 0; waterLevel = -50;
+    floodActive = false; floodCountdown = 0; waterLevel = -0.5;
     waterMesh.position.y = -50;
     floodBtnMesh.material.color.setHex(0x0044ff);
     floodUI.style.display = 'none';
@@ -1076,12 +1076,12 @@ function animate() {
     } else {
       if (waterLevel < 18) {
         waterLevel = Math.min(18, waterLevel + dt * 0.9);
-        if (waterLevel >= 18 && floodPeakTimer < 0) floodPeakTimer = 20;
+        if (waterLevel >= 18 && floodPeakTimer < 0) floodPeakTimer = 10;
       } else if (floodPeakTimer > 0) {
         floodPeakTimer -= dt;
       } else {
-        waterLevel = Math.max(-50, waterLevel - dt * 1.2);
-        if (waterLevel <= -50) { floodActive = false; floodPeakTimer = -1; floodBtnMesh.material.color.setHex(0x0044ff); floodUI.style.display = 'none'; for (let i = 0; i < npcs.length; i++) { npcs[i].floodTarget = null; npcs[i].onRoof = false; } }
+        waterLevel = Math.max(-0.5, waterLevel - dt * 1.2);
+        if (waterLevel <= -0.5) { floodActive = false; floodPeakTimer = -1; floodBtnMesh.material.color.setHex(0x0044ff); floodUI.style.display = 'none'; for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; n.floodTarget = null; n.onRoof = false; n.onLadder = false; n.group.position.y = 0; } }
       }
       waterMesh.position.y = waterLevel;
       const draining = floodPeakTimer === -1 && waterLevel < 18;
