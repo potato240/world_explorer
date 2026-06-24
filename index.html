@@ -635,24 +635,24 @@ function toggleFlood() {
     floodBtnMesh.material.color.setHex(0x0044ff);
     floodUI.style.display = 'none';
     // Reset NPC flood state
-    for (let i = 0; i < npcs.length; i++) { npcs[i].floodTarget = null; npcs[i].onRoof = false; }
+    for (let i = 0; i < npcs.length; i++) { const n = npcs[i]; n.floodTarget = null; n.onRoof = false; n.onLadder = false; n.group.position.y = 0; }
   } else {
     floodActive = true; floodCountdown = 30;
     floodBtnMesh.material.color.setHex(0xff8800);
     floodUI.style.display = 'block';
-    // Pre-assign each NPC a tall building to flee to
+    // Pre-assign each NPC the nearest tall ladder to flee to
     for (let i = 0; i < npcs.length; i++) {
       const n = npcs[i];
       const nx = n.group.position.x, nz = n.group.position.z;
       let best = null, bestScore = -1;
-      for (let k = 0; k < colliders.length; k++) {
-        const c = colliders[k];
-        if (c.h < 10) continue;
-        const dx = c.x - nx, dz = c.z - nz;
-        const score = c.h / (Math.sqrt(dx*dx+dz*dz) + 1);
-        if (score > bestScore) { bestScore = score; best = c; }
+      for (let k = 0; k < ladders.length; k++) {
+        const l = ladders[k];
+        if (l.h < 10) continue;
+        const dx = l.x - nx, dz = l.z - nz;
+        const score = l.h / (Math.sqrt(dx*dx+dz*dz) + 1);
+        if (score > bestScore) { bestScore = score; best = l; }
       }
-      n.floodTarget = best; n.onRoof = false;
+      n.floodTarget = best; n.onRoof = false; n.onLadder = false;
     }
   }
 }
@@ -1105,21 +1105,27 @@ function animate() {
       }
     }
 
-    // NPC flood AI — run to assigned tall building
+    // NPC flood AI — run to ladder, climb it, stay on roof
     for (let i = 0; i < npcs.length; i++) {
       const n = npcs[i];
       if (n.ragdoll || n.onRoof || !n.floodTarget) continue;
-      const c = n.floodTarget;
-      const dx = c.x - n.group.position.x, dz = c.z - n.group.position.z;
-      const d = Math.sqrt(dx*dx+dz*dz);
-      if (d < 1.5) {
-        // Reached building — snap to roof
-        n.group.position.y = c.h;
-        n.onRoof = true;
-        n.vx = 0; n.vz = 0;
-      } else {
-        // Override wander with flee-to-roof movement
+      const l = n.floodTarget;
+      const dx = l.x - n.group.position.x, dz = l.z - n.group.position.z;
+      const d = Math.sqrt(dx*dx + dz*dz);
+      if (d > 0.65) {
+        // Walk to ladder base
+        n.onLadder = false;
         n.vx = (dx/d) * 6; n.vz = (dz/d) * 6;
+      } else {
+        // At ladder — climb
+        n.onLadder = true;
+        n.vx = 0; n.vz = 0;
+        n.group.position.x = l.x; n.group.position.z = l.z;
+        n.group.position.y = Math.min(l.h, n.group.position.y + 6 * dt);
+        if (n.group.position.y >= l.h - 0.1) {
+          n.onRoof = true; n.onLadder = false;
+          n.group.position.y = l.h;
+        }
       }
     }
   }
