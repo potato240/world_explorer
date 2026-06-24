@@ -638,7 +638,8 @@ buildHatTypes('sw-hattype');
 window.addEventListener('keydown', function(e) {
   keys[e.code] = true;
   if (e.code === 'KeyP' && !inCar) { isFirstPerson = !isFirstPerson; camPitch = 0; }
-  if (e.code === 'KeyC' && !inCar && !isRagdoll) stance = (stance + 1) % 3;
+  if (e.code === 'KeyC' && !inCar && !isRagdoll) stance = stance === 1 ? 0 : 1; // toggle crouch
+  if (e.code === 'KeyX' && !inCar && !isRagdoll) stance = stance === 2 ? 0 : 2; // toggle crawl
   if (e.code === 'KeyR') toggleRagdoll();
   if (e.code === 'KeyF') document.getElementById('slapBtn').click();
   if (e.code === 'KeyE') {
