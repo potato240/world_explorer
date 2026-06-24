@@ -836,6 +836,17 @@ function animate() {
       nc.legL.rotation.x = -wv*0.85; nc.legR.rotation.x = wv*0.85;
       nc.body.position.y = 1.08 + Math.abs(Math.sin(n.walk*2))*0.04;
       n.group.rotation.y = Math.atan2(n.vx, n.vz);
+      // Depenetration
+      const npx = n.group.position.x, npz = n.group.position.z;
+      for (let k = 0; k < colliders.length; k++) {
+        const c = colliders[k];
+        const ox = c.hw + 0.4 - Math.abs(npx - c.x);
+        const oz = c.hd + 0.4 - Math.abs(npz - c.z);
+        if (ox > 0 && oz > 0) {
+          if (ox < oz) n.group.position.x += npx > c.x ? ox : -ox;
+          else n.group.position.z += npz > c.z ? oz : -oz;
+        }
+      }
     }
   }
 
