@@ -521,7 +521,14 @@ function animate() {
 
   } else if (isRagdoll) {
     rdVel.y -= 22 * dt;
-    char.root.position.add(rdVel.clone().multiplyScalar(dt));
+    const rdY = char.root.position.y;
+    const nx = char.root.position.x + rdVel.x * dt;
+    const nz = char.root.position.z + rdVel.z * dt;
+    if (!checkColliders(nx, char.root.position.z, 0.45, rdY)) char.root.position.x = nx;
+    else rdVel.x *= -0.4;
+    if (!checkColliders(char.root.position.x, nz, 0.45, rdY)) char.root.position.z = nz;
+    else rdVel.z *= -0.4;
+    char.root.position.y += rdVel.y * dt;
     if (char.root.position.y < 0) {
       char.root.position.y = 0; rdVel.y = Math.abs(rdVel.y)*0.3;
       rdVel.x *= 0.65; rdVel.z *= 0.65; rdAngVel.multiplyScalar(0.6);
