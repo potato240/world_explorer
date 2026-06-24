@@ -409,6 +409,42 @@ const tsunamiWaveCrest = new THREE.Mesh(
 tsunamiWaveCrest.position.y = 36;
 tsunamiWaveMesh.add(tsunamiWaveCrest);
 
+// Tornado
+const tornadoMesh = new THREE.Group();
+const tFunnelMat = new THREE.MeshLambertMaterial({ color: 0x667755, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+const tWidths = [0.3, 1.4, 3.2, 5.5, 8.2, 11.5, 15.0];
+const tornadoSegs = [];
+for (let i = 0; i < tWidths.length-1; i++) {
+  const seg = new THREE.Mesh(new THREE.CylinderGeometry(tWidths[i+1], tWidths[i], 9, 11, 1, true), tFunnelMat);
+  seg.position.y = i*9 + 4.5; tornadoMesh.add(seg); tornadoSegs.push(seg);
+}
+const tDustMat = new THREE.MeshLambertMaterial({ color: 0x998866, transparent: true, opacity: 0.55 });
+const tDust = new THREE.Mesh(new THREE.CylinderGeometry(12, 1.5, 5, 12), tDustMat);
+tDust.position.y = 2.5; tornadoMesh.add(tDust);
+// Orbiting debris
+const tornadoDebris = [];
+const tDebrisMat = new THREE.MeshLambertMaterial({ color: 0x554433 });
+for (let i = 0; i < 14; i++) {
+  const db = new THREE.Mesh(new THREE.BoxGeometry(0.4+Math.random()*0.7, 0.3+Math.random()*0.5, 0.4+Math.random()*0.7), tDebrisMat);
+  const orbitR = 6 + Math.random()*14, orbitH = 2 + Math.random()*50, orbitSpd = 2.5+Math.random()*3;
+  tornadoMesh.add(db);
+  tornadoDebris.push({ mesh: db, r: orbitR, h: orbitH, spd: orbitSpd, angle: Math.random()*Math.PI*2 });
+}
+tornadoMesh.visible = false;
+scene.add(tornadoMesh);
+
+// Tornado button
+const tornadoBtnGroup = new THREE.Group();
+tornadoBtnGroup.position.set(8, 0, -8);
+const tornadoPed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+tornadoPed.position.y = 0.5; tornadoBtnGroup.add(tornadoPed);
+const tornadoBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0x88aa00 }));
+tornadoBtnMesh.position.y = 1.17; tornadoBtnGroup.add(tornadoBtnMesh);
+scene.add(tornadoBtnGroup);
+const tornadoLabel = document.createElement('div');
+tornadoLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+document.body.appendChild(tornadoLabel);
+
 // Meteor shower button
 const meteorBtnGroup = new THREE.Group();
 meteorBtnGroup.position.set(0, 0, 8);
@@ -529,6 +565,8 @@ let tsunamiActive = false, tsunamiCountdown = 0, tsunamiPeakTimer = -1;
 let tsunamiWaveZ = -420, tsunamiWaveMoving = false, tsunamiWaveDone = false;
 let meteorActive = false, meteorSpawnTimer = 0;
 const meteors = [], impacts = [];
+let tornadoActive = false, tornadoX = 40, tornadoZ = 40;
+let tornadoVX = 6, tornadoVZ = 6, tornadoDirTimer = 0, tornadoSpin = 0;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -605,10 +643,12 @@ window.addEventListener('keydown', function(e) {
     const fx = pp.x - floodBtnGroup.position.x, fz = pp.z - floodBtnGroup.position.z;
     const tx = pp.x - tsunamiBtnGroup.position.x, tz = pp.z - tsunamiBtnGroup.position.z;
     const mtx = pp.x - meteorBtnGroup.position.x, mtz = pp.z - meteorBtnGroup.position.z;
+    const tnx = pp.x - tornadoBtnGroup.position.x, tnz = pp.z - tornadoBtnGroup.position.z;
     if (!isRagdoll && Math.sqrt(tx*tx+tz*tz) < 3.5) toggleTsunami();
     else if (!isRagdoll && Math.sqrt(fx*fx+fz*fz) < 3.5) toggleFlood();
     else if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP();
     else if (!isRagdoll && Math.sqrt(mtx*mtx+mtz*mtz) < 3.5) toggleMeteor();
+    else if (!isRagdoll && Math.sqrt(tnx*tnx+tnz*tnz) < 3.5) toggleTornado();
     else tryEnterExit();
   }
   if (e.code === 'KeyQ') {
@@ -703,6 +743,13 @@ function toggleRagdoll() {
     Object.values(rdLimbs).forEach(function(l) { l.angVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*6,(Math.random()-0.5)*10); });
     status.textContent = 'Ragdoll!';
   } else { resetPose(); status.textContent = 'On foot'; }
+}
+
+function toggleTornado() {
+  tornadoActive = !tornadoActive;
+  tornadoBtnMesh.material.color.setHex(tornadoActive ? 0xccee00 : 0x88aa00);
+  tornadoMesh.visible = tornadoActive;
+  if (tornadoActive) { tornadoX = 40; tornadoZ = 40; tornadoVX = 6; tornadoVZ = 4; tornadoDirTimer = 2; }
 }
 
 function toggleMeteor() {
@@ -1454,6 +1501,76 @@ function animate() {
       }
     }
   }
+
+  // Tornado
+  if (tornadoActive) {
+    tornadoDirTimer -= dt;
+    if (tornadoDirTimer <= 0) {
+      tornadoDirTimer = 1.5 + Math.random()*2.5;
+      const ang = Math.random()*Math.PI*2, spd = 9+Math.random()*12;
+      tornadoVX = Math.sin(ang)*spd; tornadoVZ = Math.cos(ang)*spd;
+    }
+    tornadoX += tornadoVX*dt; tornadoZ += tornadoVZ*dt;
+    if (Math.abs(tornadoX) > 185) { tornadoVX *= -1; tornadoX = Math.sign(tornadoX)*185; }
+    if (Math.abs(tornadoZ) > 185) { tornadoVZ *= -1; tornadoZ = Math.sign(tornadoZ)*185; }
+    tornadoSpin += dt*3.5;
+    tornadoMesh.position.set(tornadoX, 0, tornadoZ);
+    tornadoMesh.rotation.y = tornadoSpin;
+    for (let i = 0; i < tornadoDebris.length; i++) {
+      const db = tornadoDebris[i];
+      db.angle += db.spd*dt;
+      db.mesh.position.set(Math.cos(db.angle)*db.r, db.h, Math.sin(db.angle)*db.r);
+    }
+    const suctionR = 32, throwR = 7;
+    // Player
+    const pp2 = char.root.position;
+    const pdx = tornadoX-pp2.x, pdz = tornadoZ-pp2.z;
+    const pd = Math.sqrt(pdx*pdx+pdz*pdz);
+    if (pd < suctionR && !inCar) {
+      if (pd < throwR && !isRagdoll) {
+        isRagdoll = true;
+        rdVel.set((Math.random()-0.5)*22, 26, (Math.random()-0.5)*22);
+        rdAngVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*14,(Math.random()-0.5)*18);
+      } else if (isRagdoll) {
+        const pull = (1-pd/suctionR)*20;
+        rdVel.x += pdx/pd*pull*dt; rdVel.z += pdz/pd*pull*dt;
+      } else {
+        const pull = (1-pd/suctionR)*16;
+        char.root.position.x += pdx/pd*pull*dt; char.root.position.z += pdz/pd*pull*dt;
+      }
+    }
+    // NPCs
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      const dx = tornadoX-n.group.position.x, dz = tornadoZ-n.group.position.z;
+      const d = Math.sqrt(dx*dx+dz*dz);
+      if (d < suctionR) {
+        if (d < throwR && !n.ragdoll) {
+          n.ragdoll = true;
+          n.rvx = (Math.random()-0.5)*24; n.rvy = 24+Math.random()*12; n.rvz = (Math.random()-0.5)*24;
+          n.rax = (Math.random()-0.5)*18; n.ray = (Math.random()-0.5)*14; n.raz = (Math.random()-0.5)*18;
+        } else if (n.ragdoll) {
+          const pull = (1-d/suctionR)*18;
+          n.rvx += dx/d*pull*dt; n.rvz += dz/d*pull*dt;
+        } else {
+          const pull = (1-d/suctionR)*14;
+          n.vx = n.vx*0.7 + dx/d*pull*0.3; n.vz = n.vz*0.7 + dz/d*pull*0.3;
+        }
+      }
+    }
+  }
+  // Tornado button label
+  const tnp = char.root.position;
+  const tndx = tnp.x-tornadoBtnGroup.position.x, tndz = tnp.z-tornadoBtnGroup.position.z;
+  if (Math.sqrt(tndx*tndx+tndz*tndz) < 3.5 && !isRagdoll) {
+    tornadoBtnGroup.getWorldPosition(_v3); _v3.y += 1.8;
+    const tnproj = _v3.clone().project(camera);
+    const hw5 = renderer.domElement.clientWidth/2, hh5 = renderer.domElement.clientHeight/2;
+    tornadoLabel.style.left = (tnproj.x*hw5+hw5-50)+'px';
+    tornadoLabel.style.top  = (-tnproj.y*hh5+hh5-20)+'px';
+    tornadoLabel.style.display = 'block';
+    tornadoLabel.textContent = '[E] '+(tornadoActive?'STOP TORNADO':'TORNADO');
+  } else { tornadoLabel.style.display = 'none'; }
 
   // Meteor shower
   if (meteorActive) {
