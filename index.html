@@ -409,6 +409,21 @@ const tsunamiWaveCrest = new THREE.Mesh(
 tsunamiWaveCrest.position.y = 36;
 tsunamiWaveMesh.add(tsunamiWaveCrest);
 
+// Meteor shower button
+const meteorBtnGroup = new THREE.Group();
+meteorBtnGroup.position.set(0, 0, 8);
+const meteorPed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+meteorPed.position.y = 0.5; meteorBtnGroup.add(meteorPed);
+const meteorBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0xff4400 }));
+meteorBtnMesh.position.y = 1.17; meteorBtnGroup.add(meteorBtnMesh);
+scene.add(meteorBtnGroup);
+const meteorLabel = document.createElement('div');
+meteorLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+document.body.appendChild(meteorLabel);
+const meteorUI = document.createElement('div');
+meteorUI.style.cssText = 'position:absolute;top:140px;left:50%;transform:translateX(-50%);color:#ff6600;font:bold 26px monospace;text-shadow:0 0 14px #ff4400,0 2px 4px #000;display:none;pointer-events:none';
+document.body.appendChild(meteorUI);
+
 // PVP Frenzy button near spawn
 const pvpBtnGroup = new THREE.Group();
 pvpBtnGroup.position.set(8, 0, 0);
@@ -512,6 +527,8 @@ let pvpFrenzy = false, playerTeam = 0;
 let floodActive = false, floodCountdown = 0, waterLevel = -0.5, floodPeakTimer = -1;
 let tsunamiActive = false, tsunamiCountdown = 0, tsunamiPeakTimer = -1;
 let tsunamiWaveZ = -420, tsunamiWaveMoving = false, tsunamiWaveDone = false;
+let meteorActive = false, meteorSpawnTimer = 0;
+const meteors = [], impacts = [];
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -587,9 +604,11 @@ window.addEventListener('keydown', function(e) {
     const bx = pp.x - pvpBtnGroup.position.x, bz = pp.z - pvpBtnGroup.position.z;
     const fx = pp.x - floodBtnGroup.position.x, fz = pp.z - floodBtnGroup.position.z;
     const tx = pp.x - tsunamiBtnGroup.position.x, tz = pp.z - tsunamiBtnGroup.position.z;
+    const mtx = pp.x - meteorBtnGroup.position.x, mtz = pp.z - meteorBtnGroup.position.z;
     if (!isRagdoll && Math.sqrt(tx*tx+tz*tz) < 3.5) toggleTsunami();
     else if (!isRagdoll && Math.sqrt(fx*fx+fz*fz) < 3.5) toggleFlood();
     else if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP();
+    else if (!isRagdoll && Math.sqrt(mtx*mtx+mtz*mtz) < 3.5) toggleMeteor();
     else tryEnterExit();
   }
   if (e.code === 'KeyQ') {
@@ -684,6 +703,74 @@ function toggleRagdoll() {
     Object.values(rdLimbs).forEach(function(l) { l.angVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*6,(Math.random()-0.5)*10); });
     status.textContent = 'Ragdoll!';
   } else { resetPose(); status.textContent = 'On foot'; }
+}
+
+function toggleMeteor() {
+  meteorActive = !meteorActive;
+  meteorBtnMesh.material.color.setHex(meteorActive ? 0xffaa00 : 0xff4400);
+  meteorUI.style.display = meteorActive ? 'block' : 'none';
+  meteorUI.textContent = '☄ METEOR SHOWER';
+  if (!meteorActive) {
+    for (let i = 0; i < meteors.length; i++) scene.remove(meteors[i].group);
+    meteors.length = 0;
+  }
+}
+
+const _velVec = new THREE.Vector3();
+const _upVec = new THREE.Vector3(0, 1, 0);
+function spawnMeteor() {
+  const size = 0.5 + Math.random() * 0.9;
+  const vx = (Math.random()-0.5) * 55;
+  const vy = -(85 + Math.random() * 55);
+  const vz = (Math.random()-0.5) * 55;
+  const g = new THREE.Group();
+  g.position.set((Math.random()-0.5)*360, 220 + Math.random()*80, (Math.random()-0.5)*360);
+  // orient trail behind velocity
+  _velVec.set(vx, vy, vz).normalize().negate();
+  g.quaternion.setFromUnitVectors(_upVec, _velVec);
+  const rockMat = new THREE.MeshLambertMaterial({ color: 0xdd3300, emissive: 0xff2200 });
+  const rock = new THREE.Mesh(new THREE.SphereGeometry(size, 7, 6), rockMat);
+  g.add(rock);
+  const trailMat = new THREE.MeshLambertMaterial({ color: 0xff7700, transparent: true, opacity: 0.55 });
+  const trail = new THREE.Mesh(new THREE.ConeGeometry(size*0.55, size*12, 6), trailMat);
+  trail.position.y = size*6;
+  g.add(trail);
+  scene.add(g);
+  meteors.push({ group: g, vx, vy, vz, size, spin: (Math.random()-0.5)*4 });
+}
+
+function meteorImpact(x, y, z, size) {
+  const r = size * 14;
+  // Knockback player
+  const pp = char.root.position;
+  const dpx = pp.x-x, dpz = pp.z-z;
+  const dp = Math.sqrt(dpx*dpx+dpz*dpz);
+  if (dp < r && !inCar && !isRagdoll) {
+    const f = ((r-dp)/r)*22+8;
+    isRagdoll = true;
+    rdVel.set(dp>0.1?dpx/dp*f:(Math.random()-0.5)*f, 14+f*0.4, dp>0.1?dpz/dp*f:(Math.random()-0.5)*f);
+    rdAngVel.set((Math.random()-0.5)*14,(Math.random()-0.5)*10,(Math.random()-0.5)*14);
+  }
+  // Knockback NPCs
+  for (let i = 0; i < npcs.length; i++) {
+    const n = npcs[i]; if (n.ragdoll) continue;
+    const dx = n.group.position.x-x, dz = n.group.position.z-z;
+    const d = Math.sqrt(dx*dx+dz*dz);
+    if (d < r) {
+      const f = ((r-d)/r)*18+6;
+      n.ragdoll = true;
+      n.rvx = d>0.1?dx/d*f:(Math.random()-0.5)*f; n.rvy = 11+f*0.3; n.rvz = d>0.1?dz/d*f:(Math.random()-0.5)*f;
+      n.rax = (Math.random()-0.5)*14; n.ray = (Math.random()-0.5)*10; n.raz = (Math.random()-0.5)*14;
+    }
+  }
+  // Explosion flash
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(size*2.5, 8, 6),
+    new THREE.MeshLambertMaterial({ color: 0xff6600, emissive: 0xff4400, transparent: true, opacity: 0.92 })
+  );
+  flash.position.set(x, y+size, z);
+  scene.add(flash);
+  impacts.push({ mesh: flash, t: 0 });
 }
 
 function toggleTsunami() {
@@ -1367,6 +1454,52 @@ function animate() {
       }
     }
   }
+
+  // Meteor shower
+  if (meteorActive) {
+    meteorSpawnTimer -= dt;
+    if (meteorSpawnTimer <= 0) { meteorSpawnTimer = 0.35 + Math.random()*0.7; spawnMeteor(); }
+  }
+  for (let i = meteors.length-1; i >= 0; i--) {
+    const m = meteors[i];
+    m.group.position.x += m.vx*dt;
+    m.group.position.y += m.vy*dt;
+    m.group.position.z += m.vz*dt;
+    m.group.rotation.y += m.spin*dt;
+    const mx = m.group.position.x, my = m.group.position.y, mz = m.group.position.z;
+    let hitY = 0;
+    for (let k = 0; k < colliders.length; k++) {
+      const c = colliders[k];
+      if (Math.abs(mx-c.x) < c.hw+m.size && Math.abs(mz-c.z) < c.hd+m.size) hitY = Math.max(hitY, c.h||0);
+    }
+    if (my <= hitY+m.size || my <= m.size) {
+      meteorImpact(mx, Math.max(hitY,0), mz, m.size);
+      scene.remove(m.group); meteors.splice(i,1);
+    } else if (Math.abs(mx)>400 || Math.abs(mz)>400 || my < -10) {
+      scene.remove(m.group); meteors.splice(i,1);
+    }
+  }
+  for (let i = impacts.length-1; i >= 0; i--) {
+    const imp = impacts[i];
+    imp.t += dt;
+    const p = imp.t/0.55;
+    imp.mesh.scale.setScalar(1+p*3.5);
+    imp.mesh.material.opacity = Math.max(0, 0.92-p*1.4);
+    if (imp.t > 0.55) { scene.remove(imp.mesh); impacts.splice(i,1); }
+  }
+
+  // Meteor button label
+  const mep = char.root.position;
+  const medx = mep.x-meteorBtnGroup.position.x, medz = mep.z-meteorBtnGroup.position.z;
+  if (Math.sqrt(medx*medx+medz*medz) < 3.5 && !isRagdoll) {
+    meteorBtnGroup.getWorldPosition(_v3); _v3.y += 1.8;
+    const meproj = _v3.clone().project(camera);
+    const hw4 = renderer.domElement.clientWidth/2, hh4 = renderer.domElement.clientHeight/2;
+    meteorLabel.style.left = (meproj.x*hw4+hw4-60)+'px';
+    meteorLabel.style.top  = (-meproj.y*hh4+hh4-20)+'px';
+    meteorLabel.style.display = 'block';
+    meteorLabel.textContent = '[E] '+(meteorActive?'STOP METEORS':'METEOR SHOWER');
+  } else { meteorLabel.style.display = 'none'; }
 
   // Tsunami button label
   const tp = char.root.position;
