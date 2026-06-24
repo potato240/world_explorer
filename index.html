@@ -354,25 +354,16 @@ scene.add(carObj.group);
 
 // NPC helpers
 function makeNPCPerson(x, z) {
-  const g = new THREE.Group();
-  const skin = new THREE.MeshLambertMaterial({ color: [0xf4c76a,0xc68642,0x8d5524,0xfde8c0,0x5bcfcf,0xff9fb2][Math.floor(Math.random()*6)] });
-  const shirt = new THREE.MeshLambertMaterial({ color: [0xe74c3c,0x3498db,0x2ecc71,0x9b59b6,0xf39c12,0xff69b4][Math.floor(Math.random()*6)] });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 6, 5), skin);
-  head.position.y = 1.7; g.add(head);
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.36), shirt);
-  body.position.y = 1.05; g.add(body);
-  const shorts = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.34), shorts);
-  hips.position.y = 0.65; g.add(hips);
-  [-0.18, 0.18].forEach(function(sx) {
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.55, 5), shirt);
-    arm.position.set(sx * 1.9, 1.05, 0); g.add(arm);
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.5, 5), skin);
-    leg.position.set(sx, 0.3, 0); g.add(leg);
-  });
-  g.position.set(x, 0, z);
-  scene.add(g);
-  return { group: g, vx: (Math.random()-0.5)*3, vz: (Math.random()-0.5)*3, timer: Math.random()*3, walk: 0,
+  const skinPalette = [0xffddb4,0xf4c76a,0xc68642,0x8d5524,0xfde8c0,0xe8b89a];
+  const shirtPalette = [0xe74c3c,0x3498db,0x2ecc71,0x9b59b6,0xf39c12,0xff69b4,0x1abc9c,0xe67e22,0x5bcfcf,0xff4444];
+  const shortsPalette = [0x2c3e50,0x34495e,0x7f8c8d,0x1a5276,0x6c3483,0x1e8449,0x922b21,0x784212];
+  const skin = skinPalette[Math.floor(Math.random()*skinPalette.length)];
+  const shirt = shirtPalette[Math.floor(Math.random()*shirtPalette.length)];
+  const shorts = shortsPalette[Math.floor(Math.random()*shortsPalette.length)];
+  const c = createPeakChar(skin, shirt, shorts);
+  c.root.position.set(x, 0, z);
+  scene.add(c.root);
+  return { group: c.root, char: c, vx: (Math.random()-0.5)*3, vz: (Math.random()-0.5)*3, timer: Math.random()*3, walk: 0,
     ragdoll: false, rvx: 0, rvy: 0, rvz: 0, rax: 0, ray: 0, raz: 0,
     limbVx: [0,0,0,0], limbVz: [0,0,0,0] };
 }
@@ -392,13 +383,13 @@ function makeNPCCar(roadVal, axis) {
   });
   const spd = 6 + Math.random()*8;
   const dir = Math.random() > 0.5 ? 1 : -1;
-  const offset = (Math.random()-0.5)*5;
+  const lane = (dir > 0 ? 1.5 : -1.5) + (Math.random()-0.5)*0.5;
   if (axis === 'x') {
-    g.position.set(dir>0 ? -180 : 180, 0, roadVal + offset);
-    g.rotation.y = dir > 0 ? 0 : Math.PI;
+    g.position.set(dir>0 ? -180 : 180, 0, roadVal + lane);
+    g.rotation.y = dir > 0 ? -Math.PI/2 : Math.PI/2;
   } else {
-    g.position.set(roadVal + offset, 0, dir>0 ? -180 : 180);
-    g.rotation.y = dir > 0 ? Math.PI/2 : -Math.PI/2;
+    g.position.set(roadVal + lane, 0, dir>0 ? -180 : 180);
+    g.rotation.y = dir > 0 ? 0 : Math.PI;
   }
   scene.add(g);
   return { group: g, wheels: wheels, spd: spd * dir, axis: axis, road: roadVal };
@@ -414,7 +405,7 @@ setTimeout(function() {
     const ox = (Math.random()-0.5)*20, oz = (Math.random()-0.5)*20;
     npcs.push(makeNPCPerson(rx+ox, rz+oz));
   }
-  for (let r = -176; r <= 176; r += 44) {
+  for (let r = -200; r <= 200; r += 44) {
     if (Math.random() > 0.4) npcCars.push(makeNPCCar(r, 'x'));
     if (Math.random() > 0.4) npcCars.push(makeNPCCar(r, 'z'));
   }
@@ -425,7 +416,7 @@ const keys = {};
 let inCar = false, isRagdoll = false, walkCycle = 0;
 let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
-let currentEmote = null, emoteTime = 0;
+let currentEmote = null, emoteTime = 0, slapTime = 0;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -527,6 +518,7 @@ window.addEventListener('mousemove', function(e) {
 // Buttons
 document.getElementById('ragdollBtn').addEventListener('click', toggleRagdoll);
 document.getElementById('slapBtn').addEventListener('click', function() {
+  if (!isRagdoll && !inCar) { slapTime = 0.5; currentEmote = null; }
   const pp = char.root.position;
   for (let i = 0; i < npcs.length; i++) {
     const n = npcs[i];
@@ -663,9 +655,15 @@ function animate() {
       char.root.rotation.y = Math.atan2(mx, mz);
       walkCycle += dt*9;
       const wv = Math.sin(walkCycle);
-      char.armL.rotation.x = wv*0.7; char.armR.rotation.x = -wv*0.7;
+      char.armL.rotation.x = wv*0.7;
       char.legL.rotation.x = -wv*0.85; char.legR.rotation.x = wv*0.85;
       char.body.position.y = 1.08 + Math.abs(Math.sin(walkCycle*2))*0.04;
+      if (slapTime > 0) {
+        char.armR.rotation.x = -Math.PI * 0.85 * Math.sin((1 - slapTime/0.5) * Math.PI);
+        slapTime = Math.max(0, slapTime - dt);
+      } else {
+        char.armR.rotation.x = -wv*0.7;
+      }
     } else if (currentEmote) {
       emoteTime += dt; const t = emoteTime;
       if (currentEmote === 'wave') {
@@ -696,9 +694,15 @@ function animate() {
       }
     } else {
       walkCycle += dt*1.5;
-      char.armL.rotation.x *= 0.85; char.armR.rotation.x *= 0.85;
+      char.armL.rotation.x *= 0.85;
       char.legL.rotation.x *= 0.85; char.legR.rotation.x *= 0.85;
       char.body.position.y = 1.08+Math.sin(walkCycle)*0.015;
+      if (slapTime > 0) {
+        char.armR.rotation.x = -Math.PI * 0.85 * Math.sin((1 - slapTime/0.5) * Math.PI);
+        slapTime = Math.max(0, slapTime - dt);
+      } else {
+        char.armR.rotation.x *= 0.85;
+      }
     }
 
     // Depenetration — push player out if stuck inside a building
@@ -761,9 +765,9 @@ function animate() {
   // NPC people
   for (let i = 0; i < npcs.length; i++) {
     const n = npcs[i];
-    const ch = n.group.children;
+    const nc = n.char;
+    const limbs = [nc.armL, nc.armR, nc.legL, nc.legR];
     if (n.ragdoll) {
-      // Ragdoll physics
       n.rvy -= 22 * dt;
       const rnx = n.group.position.x + n.rvx*dt;
       const rnz = n.group.position.z + n.rvz*dt;
@@ -779,13 +783,12 @@ function animate() {
       n.rax *= 0.97; n.ray *= 0.97; n.raz *= 0.97;
       const grav = 18, damp = 3;
       for (let j = 0; j < 4; j++) {
-        const limb = ch[j+3]; if (!limb) continue;
+        const limb = limbs[j];
         n.limbVx[j] += (-grav*Math.sin(limb.rotation.x)*0.3 - damp*n.limbVx[j])*dt;
         n.limbVz[j] += (-grav*Math.sin(limb.rotation.z)*0.2 - damp*n.limbVz[j])*dt;
         limb.rotation.x += n.limbVx[j]*dt; limb.rotation.z += n.limbVz[j]*dt;
       }
     } else {
-      // Reset upright if just recovered
       n.group.rotation.x *= 0.85; n.group.rotation.z *= 0.85;
       n.timer -= dt;
       if (n.timer <= 0) {
@@ -802,10 +805,9 @@ function animate() {
       if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
       n.walk += dt*6;
       const wv = Math.sin(n.walk);
-      if (ch[3]) ch[3].rotation.x = wv*0.6;
-      if (ch[4]) ch[4].rotation.x = -wv*0.6;
-      if (ch[5]) ch[5].rotation.x = -wv*0.7;
-      if (ch[6]) ch[6].rotation.x = wv*0.7;
+      nc.armL.rotation.x = wv*0.7; nc.armR.rotation.x = -wv*0.7;
+      nc.legL.rotation.x = -wv*0.85; nc.legR.rotation.x = wv*0.85;
+      nc.body.position.y = 1.08 + Math.abs(Math.sin(n.walk*2))*0.04;
       n.group.rotation.y = Math.atan2(n.vx, n.vz);
     }
   }
