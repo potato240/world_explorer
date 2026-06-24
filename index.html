@@ -614,6 +614,22 @@ function animate() {
       char.body.position.y = 1.08+Math.sin(walkCycle)*0.015;
     }
 
+    // Depenetration — push player out if stuck inside a building
+    const dpx = char.root.position.x, dpz = char.root.position.z, dpy = char.root.position.y;
+    for (let i = 0; i < colliders.length; i++) {
+      const c = colliders[i];
+      if (dpy >= c.h) continue;
+      const overX = c.hw + 0.55 - Math.abs(dpx - c.x);
+      const overZ = c.hd + 0.55 - Math.abs(dpz - c.z);
+      if (overX > 0 && overZ > 0) {
+        if (overX < overZ) {
+          char.root.position.x += dpx > c.x ? overX : -overX;
+        } else {
+          char.root.position.z += dpz > c.z ? overZ : -overZ;
+        }
+      }
+    }
+
     // Ladder
     onLadder = false;
     for (let i = 0; i < ladders.length; i++) {
