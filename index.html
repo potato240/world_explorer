@@ -1470,7 +1470,6 @@ function animate() {
     _v3.set(focus.x+Math.sin(camYaw)*camDist, focus.y+camHeight, focus.z+Math.cos(camYaw)*camDist);
     camera.position.lerp(_v3, 0.12);
     camera.lookAt(focus.x, focus.y+1.2, focus.z);
-    camera.rotation.z = 0;
     renderer.render(scene, camera);
   }
 }
