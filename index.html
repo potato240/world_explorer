@@ -530,17 +530,19 @@ function animate() {
     else rdVel.z *= -0.4;
     char.root.position.y += rdVel.y * dt;
     // Roof + ground landing
-    let rdFloor = 0;
-    const rpx = char.root.position.x, rpz = char.root.position.z;
-    for (let i = 0; i < colliders.length; i++) {
-      const c = colliders[i];
-      if (c.h && Math.abs(rpx-c.x)<c.hw-0.1 && Math.abs(rpz-c.z)<c.hd-0.1) {
-        if (char.root.position.y >= c.h - 0.6) rdFloor = Math.max(rdFloor, c.h);
+    if (rdVel.y < 0) {
+      let rdFloor = 0;
+      const rpx = char.root.position.x, rpz = char.root.position.z;
+      for (let i = 0; i < colliders.length; i++) {
+        const c = colliders[i];
+        if (c.h && Math.abs(rpx-c.x)<c.hw && Math.abs(rpz-c.z)<c.hd) {
+          rdFloor = Math.max(rdFloor, c.h);
+        }
       }
-    }
-    if (char.root.position.y < rdFloor) {
-      char.root.position.y = rdFloor; rdVel.y = Math.abs(rdVel.y)*0.3;
-      rdVel.x *= 0.65; rdVel.z *= 0.65; rdAngVel.multiplyScalar(0.6);
+      if (char.root.position.y < rdFloor) {
+        char.root.position.y = rdFloor; rdVel.y = Math.abs(rdVel.y)*0.3;
+        rdVel.x *= 0.65; rdVel.z *= 0.65; rdAngVel.multiplyScalar(0.6);
+      }
     }
     if (char.root.position.y < 0) {
       char.root.position.y = 0; rdVel.y = Math.abs(rdVel.y)*0.3;
@@ -632,10 +634,12 @@ function animate() {
       char.root.position.y += playerVelY*dt;
       let floorY = 0;
       const px = char.root.position.x, pz = char.root.position.z;
-      for (let i = 0; i < colliders.length; i++) {
-        const c = colliders[i];
-        if (c.h && Math.abs(px-c.x)<c.hw-0.2 && Math.abs(pz-c.z)<c.hd-0.2) {
-          if (char.root.position.y >= c.h-0.5) floorY = Math.max(floorY, c.h);
+      if (playerVelY <= 0) {
+        for (let i = 0; i < colliders.length; i++) {
+          const c = colliders[i];
+          if (c.h && Math.abs(px-c.x)<c.hw && Math.abs(pz-c.z)<c.hd) {
+            floorY = Math.max(floorY, c.h);
+          }
         }
       }
       if (char.root.position.y <= floorY) { char.root.position.y=floorY; playerVelY=0; onGround=true; }
