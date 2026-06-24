@@ -351,6 +351,72 @@ const carObj = createCar(0xff4444);
 carObj.group.position.set(0, 0, -3);
 scene.add(carObj.group);
 
+// NPC helpers
+function makeNPCPerson(x, z) {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshLambertMaterial({ color: [0xf4c76a,0xc68642,0x8d5524,0xfde8c0,0x5bcfcf,0xff9fb2][Math.floor(Math.random()*6)] });
+  const shirt = new THREE.MeshLambertMaterial({ color: [0xe74c3c,0x3498db,0x2ecc71,0x9b59b6,0xf39c12,0xff69b4][Math.floor(Math.random()*6)] });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 6, 5), skin);
+  head.position.y = 1.7; g.add(head);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.36), shirt);
+  body.position.y = 1.05; g.add(body);
+  const shorts = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.34), shorts);
+  hips.position.y = 0.65; g.add(hips);
+  [-0.18, 0.18].forEach(function(sx) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.55, 5), shirt);
+    arm.position.set(sx * 1.9, 1.05, 0); g.add(arm);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.5, 5), skin);
+    leg.position.set(sx, 0.3, 0); g.add(leg);
+  });
+  g.position.set(x, 0, z);
+  scene.add(g);
+  return { group: g, vx: (Math.random()-0.5)*3, vz: (Math.random()-0.5)*3, timer: Math.random()*3, walk: 0 };
+}
+
+function makeNPCCar(roadVal, axis) {
+  const col = [0xffdd00,0x00aaff,0xff6600,0xaa00ff,0x00cc66,0xff3399][Math.floor(Math.random()*6)];
+  const g = new THREE.Group();
+  const bMat = new THREE.MeshLambertMaterial({ color: col });
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.6), bMat); b.position.y = 0.7; b.castShadow = true; g.add(b);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.55, 1.8), bMat); cab.position.set(0, 1.28, -0.1); g.add(cab);
+  const wMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+  const wheels = [];
+  [[-0.95,0.38,1.1],[0.95,0.38,1.1],[-0.95,0.38,-1.1],[0.95,0.38,-1.1]].forEach(function(p) {
+    const wg = new THREE.Group(); wg.position.set(p[0],p[1],p[2]);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.22,10), wMat); t.rotation.z = Math.PI/2; wg.add(t);
+    g.add(wg); wheels.push(wg);
+  });
+  const spd = 6 + Math.random()*8;
+  const dir = Math.random() > 0.5 ? 1 : -1;
+  const offset = (Math.random()-0.5)*5;
+  if (axis === 'x') {
+    g.position.set(dir>0 ? -180 : 180, 0, roadVal + offset);
+    g.rotation.y = dir > 0 ? 0 : Math.PI;
+  } else {
+    g.position.set(roadVal + offset, 0, dir>0 ? -180 : 180);
+    g.rotation.y = dir > 0 ? Math.PI/2 : -Math.PI/2;
+  }
+  scene.add(g);
+  return { group: g, wheels: wheels, spd: spd * dir, axis: axis, road: roadVal };
+}
+
+const npcs = [];
+const npcCars = [];
+// Spawn NPCs after a short delay (need colliders populated first)
+setTimeout(function() {
+  for (let i = 0; i < 20; i++) {
+    const rx = (Math.floor(Math.random()*9)-4)*44;
+    const rz = (Math.floor(Math.random()*9)-4)*44;
+    const ox = (Math.random()-0.5)*20, oz = (Math.random()-0.5)*20;
+    npcs.push(makeNPCPerson(rx+ox, rz+oz));
+  }
+  for (let r = -176; r <= 176; r += 44) {
+    if (Math.random() > 0.4) npcCars.push(makeNPCCar(r, 'x'));
+    if (Math.random() > 0.4) npcCars.push(makeNPCCar(r, 'z'));
+  }
+}, 200);
+
 // State
 const keys = {};
 let inCar = false, isRagdoll = false, walkCycle = 0;
@@ -669,6 +735,50 @@ function animate() {
         }
       }
     }
+  }
+
+  // NPC people
+  for (let i = 0; i < npcs.length; i++) {
+    const n = npcs[i];
+    n.timer -= dt;
+    if (n.timer <= 0) {
+      n.timer = 2 + Math.random()*3;
+      const ang = Math.random()*Math.PI*2;
+      const spd = 1.5 + Math.random()*2;
+      n.vx = Math.sin(ang)*spd; n.vz = Math.cos(ang)*spd;
+    }
+    const nx = n.group.position.x + n.vx*dt;
+    const nz = n.group.position.z + n.vz*dt;
+    if (!checkColliders(nx, n.group.position.z, 0.4)) n.group.position.x = nx;
+    else { n.vx *= -1; n.timer = 0; }
+    if (!checkColliders(n.group.position.x, nz, 0.4)) n.group.position.z = nz;
+    else { n.vz *= -1; n.timer = 0; }
+    if (Math.abs(n.group.position.x) > 190) n.vx *= -1;
+    if (Math.abs(n.group.position.z) > 190) n.vz *= -1;
+    n.walk += dt*6;
+    const wv = Math.sin(n.walk);
+    const children = n.group.children;
+    if (children[3]) children[3].rotation.x = wv*0.6;
+    if (children[4]) children[4].rotation.x = -wv*0.6;
+    if (children[5]) children[5].rotation.x = -wv*0.7;
+    if (children[6]) children[6].rotation.x = wv*0.7;
+    n.group.rotation.y = Math.atan2(n.vx, n.vz);
+  }
+
+  // NPC cars
+  for (let i = 0; i < npcCars.length; i++) {
+    const nc = npcCars[i];
+    const spd = nc.spd * dt;
+    if (nc.axis === 'x') {
+      nc.group.position.x += spd;
+      if (nc.group.position.x > 200) nc.group.position.x = -200;
+      if (nc.group.position.x < -200) nc.group.position.x = 200;
+    } else {
+      nc.group.position.z += spd;
+      if (nc.group.position.z > 200) nc.group.position.z = -200;
+      if (nc.group.position.z < -200) nc.group.position.z = 200;
+    }
+    nc.wheels.forEach(function(w) { w.rotation.x += spd * 1.5; });
   }
 
   // Camera
