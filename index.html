@@ -560,8 +560,6 @@ let carVel = 0, carAngle = 0;
 let playerVelY = 0, onGround = true, onLadder = false, ladderH = 0;
 let currentEmote = null, emoteTime = 0, slapTime = 0, heldNPC = null;
 let isFirstPerson = false, camPitch = 0;
-let stance = 0; // 0=stand 1=crouch 2=crawl
-let stanceY = 0; // smoothed height offset
 let pvpFrenzy = false, playerTeam = 0;
 let floodActive = false, floodCountdown = 0, waterLevel = -0.5, floodPeakTimer = -1;
 let tsunamiActive = false, tsunamiCountdown = 0, tsunamiPeakTimer = -1;
@@ -638,8 +636,6 @@ buildHatTypes('sw-hattype');
 window.addEventListener('keydown', function(e) {
   keys[e.code] = true;
   if (e.code === 'KeyP' && !inCar) { isFirstPerson = !isFirstPerson; camPitch = 0; }
-  if (e.code === 'KeyC' && !inCar && !isRagdoll) stance = stance === 1 ? 0 : 1; // toggle crouch
-  if (e.code === 'KeyX' && !inCar && !isRagdoll) stance = stance === 2 ? 0 : 2; // toggle crawl
   if (e.code === 'KeyR') toggleRagdoll();
   if (e.code === 'KeyF') document.getElementById('slapBtn').click();
   if (e.code === 'KeyE') {
@@ -991,12 +987,8 @@ function animate() {
     rdAngVel.multiplyScalar(0.97);
 
   } else {
-    // Stance smooth + stand on ragdoll recovery
-    if (isRagdoll) stance = 0;
-    const targetStanceY = stance === 2 ? -0.82 : stance === 1 ? -0.38 : 0;
-    stanceY += (targetStanceY - stanceY) * Math.min(1, dt * 12);
-    const sprinting = (keys['ShiftLeft'] || keys['ShiftRight']) && stance === 0 && onGround;
-    const spd = stance === 2 ? 1.8 : stance === 1 ? 3.5 : sprinting ? 13 : 7;
+    const sprinting = (keys['ShiftLeft'] || keys['ShiftRight']) && onGround;
+    const spd = sprinting ? 13 : 7;
     let mx = 0, mz = 0;
     const fwd = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
     const rgt = new THREE.Vector3(Math.cos(camYaw), 0, -Math.sin(camYaw));
@@ -1011,29 +1003,16 @@ function animate() {
       if (!checkColliders(char.root.position.x+mx, char.root.position.z, 0.55, py)) char.root.position.x += mx;
       if (!checkColliders(char.root.position.x, char.root.position.z+mz, 0.55, py)) char.root.position.z += mz;
       char.root.rotation.y = Math.atan2(mx, mz);
-      const cycleSpd = stance === 2 ? 5 : sprinting ? 15 : 9;
-      walkCycle += dt*cycleSpd;
+      walkCycle += dt*(sprinting ? 15 : 9);
       const wv = Math.sin(walkCycle);
-      if (stance === 2) { // crawl
-        char.root.rotation.x = Math.PI*0.44;
-        char.armL.rotation.x = -wv*1.1 - 1.0; char.armR.rotation.x = wv*1.1 - 1.0;
-        char.legL.rotation.x = wv*1.1; char.legR.rotation.x = -wv*1.1;
-        char.body.position.y = 1.08;
-      } else if (stance === 1) { // crouch
-        char.root.rotation.x = 0;
-        char.armL.rotation.x = wv*0.5; char.armR.rotation.x = -wv*0.5;
-        char.legL.rotation.x = -wv*0.6 + 0.9; char.legR.rotation.x = wv*0.6 + 0.9;
-        char.body.position.y = 0.82;
-      } else { // stand / sprint
-        char.root.rotation.x = sprinting ? -0.18 : 0;
-        char.armL.rotation.x = wv*(sprinting ? 1.1 : 0.7);
-        char.legL.rotation.x = -wv*(sprinting ? 1.2 : 0.85); char.legR.rotation.x = wv*(sprinting ? 1.2 : 0.85);
-        char.body.position.y = 1.08 + Math.abs(Math.sin(walkCycle*2))*0.04;
-      }
+      char.root.rotation.x = sprinting ? -0.18 : 0;
+      char.armL.rotation.x = wv*(sprinting ? 1.1 : 0.7);
+      char.legL.rotation.x = -wv*(sprinting ? 1.2 : 0.85); char.legR.rotation.x = wv*(sprinting ? 1.2 : 0.85);
+      char.body.position.y = 1.08 + Math.abs(Math.sin(walkCycle*2))*0.04;
       if (slapTime > 0) {
         char.armR.rotation.x = -Math.PI * 0.85 * Math.sin((1 - slapTime/0.5) * Math.PI);
         slapTime = Math.max(0, slapTime - dt);
-      } else if (stance !== 1 && stance !== 2) {
+      } else {
         char.armR.rotation.x = -wv*(sprinting ? 1.1 : 0.7);
       }
     } else if (currentEmote) {
@@ -1719,7 +1698,7 @@ function animate() {
       } else if (currentEmote === 'sit') {
         fpBobY = -0.35;
       }
-      const eyeY = char.root.position.y + 1.78 + stanceY + fpBobY;
+      const eyeY = char.root.position.y + 1.78 + fpBobY;
       camera.position.set(char.root.position.x, eyeY, char.root.position.z);
       const pitch = camPitch + fpPitchOff;
       camera.lookAt(
@@ -1763,7 +1742,7 @@ function animate() {
     const focus = inCar ? carObj.group.position : char.root.position;
     _v3.set(focus.x+Math.sin(camYaw)*camDist, focus.y+camHeight, focus.z+Math.cos(camYaw)*camDist);
     camera.position.lerp(_v3, 0.12);
-    camera.lookAt(focus.x, focus.y+1.2+stanceY, focus.z);
+    camera.lookAt(focus.x, focus.y+1.2, focus.z);
     renderer.render(scene, camera);
   }
 }
