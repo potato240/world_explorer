@@ -433,23 +433,54 @@ for (let i = 0; i < 14; i++) {
 tornadoMesh.visible = false;
 scene.add(tornadoMesh);
 
-// Wedge tornado mesh
+// Wedge tornado mesh — massive ground-scraping wedge
 const wedgeMesh = new THREE.Group();
-const wFunnelMat = new THREE.MeshLambertMaterial({ color: 0x8B4513, transparent: true, opacity: 0.80, side: THREE.DoubleSide });
-// Wide flat wedge: very wide at ground, tapers to narrow top, short height
-const wWidths = [18, 22, 25, 26, 25, 22, 18];
+// Outer dark shell
+const wOuterMat = new THREE.MeshLambertMaterial({ color: 0x3a2810, transparent: true, opacity: 0.88, side: THREE.DoubleSide });
+// Wide at base, tapers sharply going up — classic EF5 wedge profile
+const wWidths = [1.5, 5, 14, 26, 38, 46, 50, 50, 48, 44];
 for (let i = 0; i < wWidths.length - 1; i++) {
-  const seg = new THREE.Mesh(new THREE.CylinderGeometry(wWidths[i], wWidths[i+1], 5, 14, 1, true), wFunnelMat);
-  seg.position.y = i * 5 + 2.5; wedgeMesh.add(seg);
+  const seg = new THREE.Mesh(new THREE.CylinderGeometry(wWidths[i+1], wWidths[i], 8, 16, 1, true), wOuterMat);
+  seg.position.y = i * 8 + 4; wedgeMesh.add(seg);
 }
-const wDustMat = new THREE.MeshLambertMaterial({ color: 0x7a5c3a, transparent: true, opacity: 0.65 });
-const wDust = new THREE.Mesh(new THREE.CylinderGeometry(26, 3, 6, 14), wDustMat);
-wDust.position.y = 3; wedgeMesh.add(wDust);
+// Inner lighter core
+const wInnerMat = new THREE.MeshLambertMaterial({ color: 0x7a5c3a, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+const wInnerWidths = [0.8, 2.5, 7, 14, 20, 24, 26];
+for (let i = 0; i < wInnerWidths.length - 1; i++) {
+  const seg = new THREE.Mesh(new THREE.CylinderGeometry(wInnerWidths[i+1], wInnerWidths[i], 10, 12, 1, true), wInnerMat);
+  seg.position.y = i * 10 + 5; wedgeMesh.add(seg);
+}
+// Massive ground dust skirt
+const wDustMat = new THREE.MeshLambertMaterial({ color: 0x5a4020, transparent: true, opacity: 0.75 });
+const wDust = new THREE.Mesh(new THREE.CylinderGeometry(52, 6, 10, 18), wDustMat);
+wDust.position.y = 5; wedgeMesh.add(wDust);
+// Outer dust ring at ground
+const wDust2Mat = new THREE.MeshLambertMaterial({ color: 0x8a6a40, transparent: true, opacity: 0.40 });
+const wDust2 = new THREE.Mesh(new THREE.CylinderGeometry(70, 30, 6, 20), wDust2Mat);
+wDust2.position.y = 3; wedgeMesh.add(wDust2);
+// Condensation funnel tip glow
+const wGlowMat = new THREE.MeshLambertMaterial({ color: 0xccbbaa, transparent: true, opacity: 0.35 });
+const wGlow = new THREE.Mesh(new THREE.CylinderGeometry(2, 0.5, 20, 8), wGlowMat);
+wGlow.position.y = 82; wedgeMesh.add(wGlow);
+// Debris — 3 rings at different heights/radii
 const wedgeDebris = [];
-const wDebrisMat = new THREE.MeshLambertMaterial({ color: 0x663300 });
-for (let i = 0; i < 20; i++) {
-  const db = new THREE.Mesh(new THREE.BoxGeometry(0.6+Math.random()*1.2, 0.4+Math.random()*0.8, 0.6+Math.random()*1.2), wDebrisMat);
-  const orbitR = 10 + Math.random()*22, orbitH = 1 + Math.random()*28, orbitSpd = 1.8+Math.random()*2.5;
+const wDebrisMats = [
+  new THREE.MeshLambertMaterial({ color: 0x3a2200 }),
+  new THREE.MeshLambertMaterial({ color: 0x554433 }),
+  new THREE.MeshLambertMaterial({ color: 0x886644 }),
+];
+for (let i = 0; i < 40; i++) {
+  const mat = wDebrisMats[Math.floor(Math.random()*3)];
+  const sz = 0.8+Math.random()*2.0;
+  const db = new THREE.Mesh(new THREE.BoxGeometry(sz, sz*0.5+Math.random()*0.8, sz), mat);
+  const orbitR = 8 + Math.random()*58, orbitH = 0.5 + Math.random()*55, orbitSpd = 1.4+Math.random()*3.2;
+  wedgeMesh.add(db);
+  wedgeDebris.push({ mesh: db, r: orbitR, h: orbitH, spd: orbitSpd, angle: Math.random()*Math.PI*2 });
+}
+// A few large chunks
+for (let i = 0; i < 8; i++) {
+  const db = new THREE.Mesh(new THREE.BoxGeometry(2+Math.random()*3, 1+Math.random()*2, 2+Math.random()*3), wDebrisMats[0]);
+  const orbitR = 20 + Math.random()*40, orbitH = 2 + Math.random()*20, orbitSpd = 0.8+Math.random()*1.5;
   wedgeMesh.add(db);
   wedgeDebris.push({ mesh: db, r: orbitR, h: orbitH, spd: orbitSpd, angle: Math.random()*Math.PI*2 });
 }
@@ -1618,35 +1649,40 @@ function animate() {
   if (wedgeActive) {
     wedgeDirTimer -= dt;
     if (wedgeDirTimer <= 0) {
-      wedgeDirTimer = 1.5 + Math.random()*2.5;
-      const ang = Math.random()*Math.PI*2, spd = 5+Math.random()*6;
+      wedgeDirTimer = 2 + Math.random()*3;
+      const ang = Math.random()*Math.PI*2, spd = 8+Math.random()*9;
       wedgeVX = Math.sin(ang)*spd; wedgeVZ = Math.cos(ang)*spd;
     }
     wedgeX += wedgeVX*dt; wedgeZ += wedgeVZ*dt;
     if (Math.abs(wedgeX) > 185) { wedgeVX *= -1; wedgeX = Math.sign(wedgeX)*185; }
     if (Math.abs(wedgeZ) > 185) { wedgeVZ *= -1; wedgeZ = Math.sign(wedgeZ)*185; }
-    wedgeSpin += dt*2.2;
+    wedgeSpin += dt*1.6;
     wedgeMesh.position.set(wedgeX, 0, wedgeZ);
     wedgeMesh.rotation.y = wedgeSpin;
+    // Pulse the dust skirt scale for a breathing effect
+    const wPulse = 1 + Math.sin(wedgeSpin*3)*0.06;
+    wDust.scale.set(wPulse, 1, wPulse);
+    wDust2.scale.set(1+Math.sin(wedgeSpin*2)*0.08, 1, 1+Math.sin(wedgeSpin*2)*0.08);
     for (let i = 0; i < wedgeDebris.length; i++) {
       const db = wedgeDebris[i];
       db.angle += db.spd * dt;
       db.mesh.position.set(Math.cos(db.angle)*db.r, db.h, Math.sin(db.angle)*db.r);
+      db.mesh.rotation.x += dt*2; db.mesh.rotation.z += dt*1.5;
     }
-    const wSuctionR = 32, wThrowR = 16;
+    const wSuctionR = 55, wThrowR = 28;
     const pp3 = char.root.position;
     const wpdx = wedgeX-pp3.x, wpdz = wedgeZ-pp3.z;
     const wpd = Math.sqrt(wpdx*wpdx+wpdz*wpdz);
     if (wpd < wSuctionR && !inCar) {
       if (wpd < wThrowR && !isRagdoll) {
         isRagdoll = true;
-        rdVel.set((Math.random()-0.5)*28, 20, (Math.random()-0.5)*28);
-        rdAngVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*14,(Math.random()-0.5)*18);
+        rdVel.set((Math.random()-0.5)*40, 18, (Math.random()-0.5)*40);
+        rdAngVel.set((Math.random()-0.5)*22,(Math.random()-0.5)*18,(Math.random()-0.5)*22);
       } else if (isRagdoll) {
-        const pull = (1-wpd/wSuctionR)*22;
+        const pull = (1-wpd/wSuctionR)*32;
         rdVel.x += wpdx/wpd*pull*dt; rdVel.z += wpdz/wpd*pull*dt;
       } else {
-        const pull = (1-wpd/wSuctionR)*18;
+        const pull = (1-wpd/wSuctionR)*26;
         char.root.position.x += wpdx/wpd*pull*dt; char.root.position.z += wpdz/wpd*pull*dt;
       }
     }
@@ -1657,14 +1693,14 @@ function animate() {
       if (d < wSuctionR) {
         if (d < wThrowR && !n.ragdoll) {
           n.ragdoll = true;
-          n.rvx = (Math.random()-0.5)*28; n.rvy = 20+Math.random()*10; n.rvz = (Math.random()-0.5)*28;
-          n.rax = (Math.random()-0.5)*18; n.ray = (Math.random()-0.5)*14; n.raz = (Math.random()-0.5)*18;
+          n.rvx = (Math.random()-0.5)*40; n.rvy = 18+Math.random()*14; n.rvz = (Math.random()-0.5)*40;
+          n.rax = (Math.random()-0.5)*22; n.ray = (Math.random()-0.5)*18; n.raz = (Math.random()-0.5)*22;
         } else if (n.ragdoll) {
-          const pull = (1-d/wSuctionR)*20;
+          const pull = (1-d/wSuctionR)*28;
           n.rvx += dx/d*pull*dt; n.rvz += dz/d*pull*dt;
         } else {
-          const pull = (1-d/wSuctionR)*16;
-          n.vx = n.vx*0.7 + dx/d*pull*0.3; n.vz = n.vz*0.7 + dz/d*pull*0.3;
+          const pull = (1-d/wSuctionR)*22;
+          n.vx = n.vx*0.6 + dx/d*pull*0.4; n.vz = n.vz*0.6 + dz/d*pull*0.4;
         }
       }
     }
