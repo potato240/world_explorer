@@ -487,39 +487,47 @@ for (let i = 0; i < 8; i++) {
 wedgeMesh.visible = false;
 scene.add(wedgeMesh);
 
-// Multi-vortex — array of 6 independent mini-tornadoes
-const MV_COUNT = 6;
-const mvVortices = [];
-const mvFunnelMat = new THREE.MeshLambertMaterial({ color: 0x7744bb, transparent: true, opacity: 0.78, side: THREE.DoubleSide });
-const mvDustMat  = new THREE.MeshLambertMaterial({ color: 0x4422aa, transparent: true, opacity: 0.60 });
-const mvDebrisMat = new THREE.MeshLambertMaterial({ color: 0x221144 });
-for (let v = 0; v < MV_COUNT; v++) {
-  const g = new THREE.Group();
-  // Funnel: narrow, tall
-  const mWidths = [0.2, 0.6, 1.4, 2.8, 4.5, 6.0];
-  for (let i = 0; i < mWidths.length - 1; i++) {
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(mWidths[i+1], mWidths[i], 7, 9, 1, true), mvFunnelMat);
-    seg.position.y = i * 7 + 3.5; g.add(seg);
+// Multi-vortex — one storm, 4 sub-vortices orbiting a shared center
+const MV_SUB = 4;
+const mvGroup = new THREE.Group(); // whole storm moves together
+// Wide outer circulation cloud
+const mvOuterMat = new THREE.MeshLambertMaterial({ color: 0x443366, transparent: true, opacity: 0.38, side: THREE.DoubleSide });
+const mvOuter = new THREE.Mesh(new THREE.CylinderGeometry(38, 12, 14, 18, 1, true), mvOuterMat);
+mvOuter.position.y = 7; mvGroup.add(mvOuter);
+const mvOuter2 = new THREE.Mesh(new THREE.CylinderGeometry(28, 6, 20, 16, 1, true), mvOuterMat);
+mvOuter2.position.y = 20; mvGroup.add(mvOuter2);
+// Ground dust for whole storm
+const mvGndMat = new THREE.MeshLambertMaterial({ color: 0x221133, transparent: true, opacity: 0.55 });
+const mvGnd = new THREE.Mesh(new THREE.CylinderGeometry(40, 5, 8, 18), mvGndMat);
+mvGnd.position.y = 4; mvGroup.add(mvGnd);
+// Sub-vortex funnels — each is its own group that orbits inside mvGroup
+const mvSubMat = new THREE.MeshLambertMaterial({ color: 0x9955ff, transparent: true, opacity: 0.82, side: THREE.DoubleSide });
+const mvSubDustMat = new THREE.MeshLambertMaterial({ color: 0x5522aa, transparent: true, opacity: 0.65 });
+const mvSubDebrisMat = new THREE.MeshLambertMaterial({ color: 0x331155 });
+const mvSubs = [];
+for (let v = 0; v < MV_SUB; v++) {
+  const sg = new THREE.Group();
+  // Narrow tall funnel per sub-vortex
+  const sWidths = [0.15, 0.5, 1.2, 2.2, 3.5, 4.5];
+  for (let i = 0; i < sWidths.length - 1; i++) {
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(sWidths[i+1], sWidths[i], 8, 9, 1, true), mvSubMat);
+    seg.position.y = i * 8 + 4; sg.add(seg);
   }
-  const mDust = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 0.8, 5, 10), mvDustMat);
-  mDust.position.y = 2.5; g.add(mDust);
-  // Small debris ring
-  const mDebris = [];
-  for (let d = 0; d < 8; d++) {
-    const db = new THREE.Mesh(new THREE.BoxGeometry(0.25+Math.random()*0.4, 0.2+Math.random()*0.3, 0.25+Math.random()*0.4), mvDebrisMat);
-    const r = 2.5+Math.random()*6, h = 1+Math.random()*22, spd = 3+Math.random()*4;
-    g.add(db);
-    mDebris.push({ mesh: db, r, h, spd, angle: Math.random()*Math.PI*2 });
+  const sDust = new THREE.Mesh(new THREE.CylinderGeometry(5, 0.5, 5, 10), mvSubDustMat);
+  sDust.position.y = 2.5; sg.add(sDust);
+  // Debris per sub-vortex
+  const sDebris = [];
+  for (let d = 0; d < 6; d++) {
+    const db = new THREE.Mesh(new THREE.BoxGeometry(0.3+Math.random()*0.5, 0.2+Math.random()*0.4, 0.3+Math.random()*0.5), mvSubDebrisMat);
+    const r = 2+Math.random()*4, h = 1+Math.random()*28, spd = 4+Math.random()*5;
+    sg.add(db);
+    sDebris.push({ mesh: db, r, h, spd, angle: Math.random()*Math.PI*2 });
   }
-  g.visible = false;
-  scene.add(g);
-  mvVortices.push({
-    group: g, debris: mDebris,
-    x: (Math.random()-0.5)*160, z: (Math.random()-0.5)*160,
-    vx: (Math.random()-0.5)*18, vz: (Math.random()-0.5)*18,
-    spin: Math.random()*Math.PI*2, dirTimer: Math.random()*2
-  });
+  mvGroup.add(sg);
+  mvSubs.push({ group: sg, debris: sDebris, orbitAngle: (v/MV_SUB)*Math.PI*2, orbitR: 14+Math.random()*8, spin: 0 });
 }
+mvGroup.visible = false;
+scene.add(mvGroup);
 
 // Wedge tornado button
 const wedgeBtnGroup = new THREE.Group();
@@ -682,7 +690,7 @@ let tornadoActive = false, tornadoX = 40, tornadoZ = 40;
 let tornadoVX = 6, tornadoVZ = 6, tornadoDirTimer = 0, tornadoSpin = 0;
 let wedgeActive = false, wedgeX = -40, wedgeZ = -40;
 let wedgeVX = 5, wedgeVZ = 4, wedgeDirTimer = 2, wedgeSpin = 0;
-let mvActive = false;
+let mvActive = false, mvX = 50, mvZ = 50, mvVX = 7, mvVZ = 5, mvDirTimer = 2, mvOrbitSpin = 0;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -884,18 +892,8 @@ function toggleWedge() {
 function toggleMV() {
   mvActive = !mvActive;
   mvBtnMesh.material.color.setHex(mvActive ? 0xaa44ff : 0x5500cc);
-  for (let v = 0; v < MV_COUNT; v++) {
-    mvVortices[v].group.visible = mvActive;
-    if (mvActive) {
-      // Scatter them around the map
-      const angle = (v / MV_COUNT) * Math.PI * 2;
-      mvVortices[v].x = Math.cos(angle) * (60 + Math.random()*60);
-      mvVortices[v].z = Math.sin(angle) * (60 + Math.random()*60);
-      mvVortices[v].vx = (Math.random()-0.5)*20;
-      mvVortices[v].vz = (Math.random()-0.5)*20;
-      mvVortices[v].dirTimer = Math.random()*2;
-    }
-  }
+  mvGroup.visible = mvActive;
+  if (mvActive) { mvX = 50; mvZ = 50; mvVX = 7; mvVZ = 5; mvDirTimer = 2; mvOrbitSpin = 0; }
 }
 
 function toggleMeteor() {
@@ -1800,61 +1798,93 @@ function animate() {
     wedgeLabel.textContent = '[E] '+(wedgeActive?'STOP WEDGE':'WEDGE TORNADO');
   } else { wedgeLabel.style.display = 'none'; }
 
-  // Multi-vortex
+  // Multi-vortex — one storm, sub-vortices orbit the center
   if (mvActive) {
-    const mvSuctionR = 18, mvThrowR = 8;
-    for (let v = 0; v < MV_COUNT; v++) {
-      const mv = mvVortices[v];
-      mv.dirTimer -= dt;
-      if (mv.dirTimer <= 0) {
-        mv.dirTimer = 1 + Math.random()*2.5;
-        const ang = Math.random()*Math.PI*2, spd = 10+Math.random()*14;
-        mv.vx = Math.sin(ang)*spd; mv.vz = Math.cos(ang)*spd;
-      }
-      mv.x += mv.vx*dt; mv.z += mv.vz*dt;
-      if (Math.abs(mv.x) > 185) { mv.vx *= -1; mv.x = Math.sign(mv.x)*185; }
-      if (Math.abs(mv.z) > 185) { mv.vz *= -1; mv.z = Math.sign(mv.z)*185; }
-      mv.spin += dt*4.5;
-      mv.group.position.set(mv.x, 0, mv.z);
-      mv.group.rotation.y = mv.spin;
-      for (let d = 0; d < mv.debris.length; d++) {
-        const db = mv.debris[d];
+    // Move the whole storm
+    mvDirTimer -= dt;
+    if (mvDirTimer <= 0) {
+      mvDirTimer = 2 + Math.random()*3;
+      const ang = Math.random()*Math.PI*2, spd = 7+Math.random()*8;
+      mvVX = Math.sin(ang)*spd; mvVZ = Math.cos(ang)*spd;
+    }
+    mvX += mvVX*dt; mvZ += mvVZ*dt;
+    if (Math.abs(mvX) > 185) { mvVX *= -1; mvX = Math.sign(mvX)*185; }
+    if (Math.abs(mvZ) > 185) { mvVZ *= -1; mvZ = Math.sign(mvZ)*185; }
+    mvOrbitSpin += dt*1.8;
+    mvGroup.position.set(mvX, 0, mvZ);
+    mvGroup.rotation.y = mvOrbitSpin;
+    // Animate outer circulation pulse
+    const mvPulse = 1 + Math.sin(mvOrbitSpin*2)*0.04;
+    mvOuter.scale.set(mvPulse, 1, mvPulse);
+    // Each sub-vortex orbits around center
+    for (let v = 0; v < MV_SUB; v++) {
+      const sv = mvSubs[v];
+      sv.orbitAngle += dt * 1.4;
+      sv.spin += dt * 5;
+      const sx = Math.cos(sv.orbitAngle) * sv.orbitR;
+      const sz = Math.sin(sv.orbitAngle) * sv.orbitR;
+      sv.group.position.set(sx, 0, sz);
+      sv.group.rotation.y = sv.spin;
+      for (let d = 0; d < sv.debris.length; d++) {
+        const db = sv.debris[d];
         db.angle += db.spd * dt;
         db.mesh.position.set(Math.cos(db.angle)*db.r, db.h, Math.sin(db.angle)*db.r);
       }
-      // Player suction
-      const pp4 = char.root.position;
-      const mpdx = mv.x-pp4.x, mpdz = mv.z-pp4.z;
-      const mpd = Math.sqrt(mpdx*mpdx+mpdz*mpdz);
-      if (mpd < mvSuctionR && !inCar) {
-        if (mpd < mvThrowR && !isRagdoll) {
+    }
+    // Physics: pull toward storm center, sub-vortices also throw
+    const mvSuctionR = 45, mvThrowR = 8;
+    const pp4 = char.root.position;
+    const mpdx = mvX-pp4.x, mpdz = mvZ-pp4.z;
+    const mpd = Math.sqrt(mpdx*mpdx+mpdz*mpdz);
+    if (mpd < mvSuctionR && !inCar) {
+      // Check each sub-vortex for throw
+      let thrown = false;
+      for (let v = 0; v < MV_SUB && !thrown; v++) {
+        const sv = mvSubs[v];
+        const swx = mvX + sv.group.position.x, swz = mvZ + sv.group.position.z;
+        const sdx = swx-pp4.x, sdz = swz-pp4.z;
+        const sd = Math.sqrt(sdx*sdx+sdz*sdz);
+        if (sd < mvThrowR && !isRagdoll) {
           isRagdoll = true;
-          rdVel.set((Math.random()-0.5)*30, 22, (Math.random()-0.5)*30);
-          rdAngVel.set((Math.random()-0.5)*20,(Math.random()-0.5)*16,(Math.random()-0.5)*20);
-        } else if (isRagdoll) {
-          const pull = (1-mpd/mvSuctionR)*28;
+          rdVel.set((Math.random()-0.5)*35, 28, (Math.random()-0.5)*35);
+          rdAngVel.set((Math.random()-0.5)*22,(Math.random()-0.5)*18,(Math.random()-0.5)*22);
+          thrown = true;
+        }
+      }
+      if (!thrown) {
+        if (isRagdoll) {
+          const pull = (1-mpd/mvSuctionR)*26;
           rdVel.x += mpdx/mpd*pull*dt; rdVel.z += mpdz/mpd*pull*dt;
         } else {
-          const pull = (1-mpd/mvSuctionR)*22;
+          const pull = (1-mpd/mvSuctionR)*20;
           char.root.position.x += mpdx/mpd*pull*dt; char.root.position.z += mpdz/mpd*pull*dt;
         }
       }
-      // NPC suction
-      for (let i = 0; i < npcs.length; i++) {
-        const n = npcs[i];
-        const dx = mv.x-n.group.position.x, dz = mv.z-n.group.position.z;
-        const d = Math.sqrt(dx*dx+dz*dz);
-        if (d < mvSuctionR) {
-          if (d < mvThrowR && !n.ragdoll) {
+    }
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      const dx = mvX-n.group.position.x, dz = mvZ-n.group.position.z;
+      const d = Math.sqrt(dx*dx+dz*dz);
+      if (d < mvSuctionR) {
+        let nThrown = false;
+        for (let v = 0; v < MV_SUB && !nThrown; v++) {
+          const sv = mvSubs[v];
+          const swx = mvX+sv.group.position.x, swz = mvZ+sv.group.position.z;
+          const sdx = swx-n.group.position.x, sdz = swz-n.group.position.z;
+          if (Math.sqrt(sdx*sdx+sdz*sdz) < mvThrowR && !n.ragdoll) {
             n.ragdoll = true;
-            n.rvx = (Math.random()-0.5)*30; n.rvy = 22+Math.random()*12; n.rvz = (Math.random()-0.5)*30;
-            n.rax = (Math.random()-0.5)*20; n.ray = (Math.random()-0.5)*16; n.raz = (Math.random()-0.5)*20;
-          } else if (n.ragdoll) {
-            const pull = (1-d/mvSuctionR)*24;
+            n.rvx = (Math.random()-0.5)*35; n.rvy = 28+Math.random()*12; n.rvz = (Math.random()-0.5)*35;
+            n.rax = (Math.random()-0.5)*22; n.ray = (Math.random()-0.5)*18; n.raz = (Math.random()-0.5)*22;
+            nThrown = true;
+          }
+        }
+        if (!nThrown) {
+          if (n.ragdoll) {
+            const pull = (1-d/mvSuctionR)*22;
             n.rvx += dx/d*pull*dt; n.rvz += dz/d*pull*dt;
           } else {
-            const pull = (1-d/mvSuctionR)*18;
-            n.vx = n.vx*0.65 + dx/d*pull*0.35; n.vz = n.vz*0.65 + dz/d*pull*0.35;
+            const pull = (1-d/mvSuctionR)*16;
+            n.vx = n.vx*0.7 + dx/d*pull*0.3; n.vz = n.vz*0.7 + dz/d*pull*0.3;
           }
         }
       }
