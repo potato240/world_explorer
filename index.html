@@ -487,6 +487,40 @@ for (let i = 0; i < 8; i++) {
 wedgeMesh.visible = false;
 scene.add(wedgeMesh);
 
+// Multi-vortex — array of 6 independent mini-tornadoes
+const MV_COUNT = 6;
+const mvVortices = [];
+const mvFunnelMat = new THREE.MeshLambertMaterial({ color: 0x7744bb, transparent: true, opacity: 0.78, side: THREE.DoubleSide });
+const mvDustMat  = new THREE.MeshLambertMaterial({ color: 0x4422aa, transparent: true, opacity: 0.60 });
+const mvDebrisMat = new THREE.MeshLambertMaterial({ color: 0x221144 });
+for (let v = 0; v < MV_COUNT; v++) {
+  const g = new THREE.Group();
+  // Funnel: narrow, tall
+  const mWidths = [0.2, 0.6, 1.4, 2.8, 4.5, 6.0];
+  for (let i = 0; i < mWidths.length - 1; i++) {
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(mWidths[i+1], mWidths[i], 7, 9, 1, true), mvFunnelMat);
+    seg.position.y = i * 7 + 3.5; g.add(seg);
+  }
+  const mDust = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 0.8, 5, 10), mvDustMat);
+  mDust.position.y = 2.5; g.add(mDust);
+  // Small debris ring
+  const mDebris = [];
+  for (let d = 0; d < 8; d++) {
+    const db = new THREE.Mesh(new THREE.BoxGeometry(0.25+Math.random()*0.4, 0.2+Math.random()*0.3, 0.25+Math.random()*0.4), mvDebrisMat);
+    const r = 2.5+Math.random()*6, h = 1+Math.random()*22, spd = 3+Math.random()*4;
+    g.add(db);
+    mDebris.push({ mesh: db, r, h, spd, angle: Math.random()*Math.PI*2 });
+  }
+  g.visible = false;
+  scene.add(g);
+  mvVortices.push({
+    group: g, debris: mDebris,
+    x: (Math.random()-0.5)*160, z: (Math.random()-0.5)*160,
+    vx: (Math.random()-0.5)*18, vz: (Math.random()-0.5)*18,
+    spin: Math.random()*Math.PI*2, dirTimer: Math.random()*2
+  });
+}
+
 // Wedge tornado button
 const wedgeBtnGroup = new THREE.Group();
 wedgeBtnGroup.position.set(-8, 0, -8);
@@ -510,6 +544,18 @@ scene.add(tornadoBtnGroup);
 const tornadoLabel = document.createElement('div');
 tornadoLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
 document.body.appendChild(tornadoLabel);
+
+// Multi-vortex button
+const mvBtnGroup = new THREE.Group();
+mvBtnGroup.position.set(0, 0, -16);
+const mvPed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+mvPed.position.y = 0.5; mvBtnGroup.add(mvPed);
+const mvBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0x5500cc }));
+mvBtnMesh.position.y = 1.17; mvBtnGroup.add(mvBtnMesh);
+scene.add(mvBtnGroup);
+const mvLabel = document.createElement('div');
+mvLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+document.body.appendChild(mvLabel);
 
 // Meteor shower button
 const meteorBtnGroup = new THREE.Group();
@@ -636,6 +682,7 @@ let tornadoActive = false, tornadoX = 40, tornadoZ = 40;
 let tornadoVX = 6, tornadoVZ = 6, tornadoDirTimer = 0, tornadoSpin = 0;
 let wedgeActive = false, wedgeX = -40, wedgeZ = -40;
 let wedgeVX = 5, wedgeVZ = 4, wedgeDirTimer = 2, wedgeSpin = 0;
+let mvActive = false;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -720,7 +767,11 @@ window.addEventListener('keydown', function(e) {
     else if (!isRagdoll && Math.sqrt(mtx*mtx+mtz*mtz) < 3.5) toggleMeteor();
     else if (!isRagdoll && Math.sqrt(tnx*tnx+tnz*tnz) < 3.5) toggleTornado();
     else if (!isRagdoll && Math.sqrt(wgx*wgx+wgz*wgz) < 3.5) toggleWedge();
-    else tryEnterExit();
+    else {
+      const mvdx = pp.x - mvBtnGroup.position.x, mvdz = pp.z - mvBtnGroup.position.z;
+      if (!isRagdoll && Math.sqrt(mvdx*mvdx+mvdz*mvdz) < 3.5) toggleMV();
+      else tryEnterExit();
+    }
   }
   if (e.code === 'KeyQ') {
     if (heldNPC) {
@@ -828,6 +879,23 @@ function toggleWedge() {
   wedgeBtnMesh.material.color.setHex(wedgeActive ? 0xd2691e : 0x8B4513);
   wedgeMesh.visible = wedgeActive;
   if (wedgeActive) { wedgeX = -40; wedgeZ = -40; wedgeVX = 5; wedgeVZ = 4; wedgeDirTimer = 2; }
+}
+
+function toggleMV() {
+  mvActive = !mvActive;
+  mvBtnMesh.material.color.setHex(mvActive ? 0xaa44ff : 0x5500cc);
+  for (let v = 0; v < MV_COUNT; v++) {
+    mvVortices[v].group.visible = mvActive;
+    if (mvActive) {
+      // Scatter them around the map
+      const angle = (v / MV_COUNT) * Math.PI * 2;
+      mvVortices[v].x = Math.cos(angle) * (60 + Math.random()*60);
+      mvVortices[v].z = Math.sin(angle) * (60 + Math.random()*60);
+      mvVortices[v].vx = (Math.random()-0.5)*20;
+      mvVortices[v].vz = (Math.random()-0.5)*20;
+      mvVortices[v].dirTimer = Math.random()*2;
+    }
+  }
 }
 
 function toggleMeteor() {
@@ -1731,6 +1799,79 @@ function animate() {
     wedgeLabel.style.display = 'block';
     wedgeLabel.textContent = '[E] '+(wedgeActive?'STOP WEDGE':'WEDGE TORNADO');
   } else { wedgeLabel.style.display = 'none'; }
+
+  // Multi-vortex
+  if (mvActive) {
+    const mvSuctionR = 18, mvThrowR = 8;
+    for (let v = 0; v < MV_COUNT; v++) {
+      const mv = mvVortices[v];
+      mv.dirTimer -= dt;
+      if (mv.dirTimer <= 0) {
+        mv.dirTimer = 1 + Math.random()*2.5;
+        const ang = Math.random()*Math.PI*2, spd = 10+Math.random()*14;
+        mv.vx = Math.sin(ang)*spd; mv.vz = Math.cos(ang)*spd;
+      }
+      mv.x += mv.vx*dt; mv.z += mv.vz*dt;
+      if (Math.abs(mv.x) > 185) { mv.vx *= -1; mv.x = Math.sign(mv.x)*185; }
+      if (Math.abs(mv.z) > 185) { mv.vz *= -1; mv.z = Math.sign(mv.z)*185; }
+      mv.spin += dt*4.5;
+      mv.group.position.set(mv.x, 0, mv.z);
+      mv.group.rotation.y = mv.spin;
+      for (let d = 0; d < mv.debris.length; d++) {
+        const db = mv.debris[d];
+        db.angle += db.spd * dt;
+        db.mesh.position.set(Math.cos(db.angle)*db.r, db.h, Math.sin(db.angle)*db.r);
+      }
+      // Player suction
+      const pp4 = char.root.position;
+      const mpdx = mv.x-pp4.x, mpdz = mv.z-pp4.z;
+      const mpd = Math.sqrt(mpdx*mpdx+mpdz*mpdz);
+      if (mpd < mvSuctionR && !inCar) {
+        if (mpd < mvThrowR && !isRagdoll) {
+          isRagdoll = true;
+          rdVel.set((Math.random()-0.5)*30, 22, (Math.random()-0.5)*30);
+          rdAngVel.set((Math.random()-0.5)*20,(Math.random()-0.5)*16,(Math.random()-0.5)*20);
+        } else if (isRagdoll) {
+          const pull = (1-mpd/mvSuctionR)*28;
+          rdVel.x += mpdx/mpd*pull*dt; rdVel.z += mpdz/mpd*pull*dt;
+        } else {
+          const pull = (1-mpd/mvSuctionR)*22;
+          char.root.position.x += mpdx/mpd*pull*dt; char.root.position.z += mpdz/mpd*pull*dt;
+        }
+      }
+      // NPC suction
+      for (let i = 0; i < npcs.length; i++) {
+        const n = npcs[i];
+        const dx = mv.x-n.group.position.x, dz = mv.z-n.group.position.z;
+        const d = Math.sqrt(dx*dx+dz*dz);
+        if (d < mvSuctionR) {
+          if (d < mvThrowR && !n.ragdoll) {
+            n.ragdoll = true;
+            n.rvx = (Math.random()-0.5)*30; n.rvy = 22+Math.random()*12; n.rvz = (Math.random()-0.5)*30;
+            n.rax = (Math.random()-0.5)*20; n.ray = (Math.random()-0.5)*16; n.raz = (Math.random()-0.5)*20;
+          } else if (n.ragdoll) {
+            const pull = (1-d/mvSuctionR)*24;
+            n.rvx += dx/d*pull*dt; n.rvz += dz/d*pull*dt;
+          } else {
+            const pull = (1-d/mvSuctionR)*18;
+            n.vx = n.vx*0.65 + dx/d*pull*0.35; n.vz = n.vz*0.65 + dz/d*pull*0.35;
+          }
+        }
+      }
+    }
+  }
+  // Multi-vortex button label
+  const mvlp = char.root.position;
+  const mvldx = mvlp.x-mvBtnGroup.position.x, mvldz = mvlp.z-mvBtnGroup.position.z;
+  if (Math.sqrt(mvldx*mvldx+mvldz*mvldz) < 3.5 && !isRagdoll) {
+    mvBtnGroup.getWorldPosition(_v3); _v3.y += 1.8;
+    const mvproj = _v3.clone().project(camera);
+    const hw7 = renderer.domElement.clientWidth/2, hh7 = renderer.domElement.clientHeight/2;
+    mvLabel.style.left = (mvproj.x*hw7+hw7-70)+'px';
+    mvLabel.style.top  = (-mvproj.y*hh7+hh7-20)+'px';
+    mvLabel.style.display = 'block';
+    mvLabel.textContent = '[E] '+(mvActive?'STOP MULTI-VORTEX':'MULTI-VORTEX');
+  } else { mvLabel.style.display = 'none'; }
 
   // Meteor shower
   if (meteorActive) {
