@@ -1046,24 +1046,10 @@ function animate() {
       }
     } else {
       walkCycle += dt*1.5;
-      if (stance === 2) { // crawl idle — stay flat
-        char.root.rotation.x = Math.PI*0.44;
-        char.armL.rotation.x += (-1.0 - char.armL.rotation.x)*dt*8;
-        char.armR.rotation.x += (-1.0 - char.armR.rotation.x)*dt*8;
-        char.legL.rotation.x *= 0.85; char.legR.rotation.x *= 0.85;
-        char.body.position.y = 1.08;
-      } else if (stance === 1) { // crouch idle
-        char.root.rotation.x += (0 - char.root.rotation.x)*dt*10;
-        char.armL.rotation.x *= 0.85;
-        char.legL.rotation.x += (0.9 - char.legL.rotation.x)*dt*10;
-        char.legR.rotation.x += (0.9 - char.legR.rotation.x)*dt*10;
-        char.body.position.y = 0.82;
-      } else { // stand idle
-        char.root.rotation.x += (0 - char.root.rotation.x)*dt*10;
-        char.armL.rotation.x *= 0.85;
-        char.legL.rotation.x *= 0.85; char.legR.rotation.x *= 0.85;
-        char.body.position.y = 1.08+Math.sin(walkCycle)*0.015;
-      }
+      char.root.rotation.x += (0 - char.root.rotation.x)*dt*10;
+      char.armL.rotation.x *= 0.85;
+      char.legL.rotation.x *= 0.85; char.legR.rotation.x *= 0.85;
+      char.body.position.y = 1.08+Math.sin(walkCycle)*0.015;
       if (slapTime > 0) {
         char.armR.rotation.x = -Math.PI * 0.85 * Math.sin((1 - slapTime/0.5) * Math.PI);
         slapTime = Math.max(0, slapTime - dt);
@@ -1754,7 +1740,7 @@ setTimeout(function() {
     for (let bz = -180; bz <= 180; bz += 44) {
       [[bx+12,bz+12],[bx+28,bz+12],[bx+12,bz+28],[bx+28,bz+28]].forEach(function(q) {
         if (Math.abs(q[0])<25 && Math.abs(q[1])<25) return;
-        if (Math.random() > 0.15) makeBuilding(q[0], q[1]);
+        if (Math.random() > 0.35) makeBuilding(q[0], q[1]);
       });
     }
   }
