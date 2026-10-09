@@ -1006,7 +1006,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (inCar) {
-    const accel = 32, maxSpd = 55, friction = 0.9, turnSpd = 2.0;
+    const accel = 60, maxSpd = 120, friction = 0.92, turnSpd = 2.4;
     if (keys['KeyW'] || keys['ArrowUp']) carVel += accel * dt;
     if (keys['KeyS'] || keys['ArrowDown']) carVel -= accel * 0.7 * dt;
     if (Math.abs(carVel) > 0.5) {
