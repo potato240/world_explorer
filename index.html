@@ -433,6 +433,41 @@ for (let i = 0; i < 14; i++) {
 tornadoMesh.visible = false;
 scene.add(tornadoMesh);
 
+// Wedge tornado mesh
+const wedgeMesh = new THREE.Group();
+const wFunnelMat = new THREE.MeshLambertMaterial({ color: 0x8B4513, transparent: true, opacity: 0.80, side: THREE.DoubleSide });
+// Wide flat wedge: very wide at ground, tapers to narrow top, short height
+const wWidths = [18, 22, 25, 26, 25, 22, 18];
+for (let i = 0; i < wWidths.length - 1; i++) {
+  const seg = new THREE.Mesh(new THREE.CylinderGeometry(wWidths[i], wWidths[i+1], 5, 14, 1, true), wFunnelMat);
+  seg.position.y = i * 5 + 2.5; wedgeMesh.add(seg);
+}
+const wDustMat = new THREE.MeshLambertMaterial({ color: 0x7a5c3a, transparent: true, opacity: 0.65 });
+const wDust = new THREE.Mesh(new THREE.CylinderGeometry(26, 3, 6, 14), wDustMat);
+wDust.position.y = 3; wedgeMesh.add(wDust);
+const wedgeDebris = [];
+const wDebrisMat = new THREE.MeshLambertMaterial({ color: 0x663300 });
+for (let i = 0; i < 20; i++) {
+  const db = new THREE.Mesh(new THREE.BoxGeometry(0.6+Math.random()*1.2, 0.4+Math.random()*0.8, 0.6+Math.random()*1.2), wDebrisMat);
+  const orbitR = 10 + Math.random()*22, orbitH = 1 + Math.random()*28, orbitSpd = 1.8+Math.random()*2.5;
+  wedgeMesh.add(db);
+  wedgeDebris.push({ mesh: db, r: orbitR, h: orbitH, spd: orbitSpd, angle: Math.random()*Math.PI*2 });
+}
+wedgeMesh.visible = false;
+scene.add(wedgeMesh);
+
+// Wedge tornado button
+const wedgeBtnGroup = new THREE.Group();
+wedgeBtnGroup.position.set(-8, 0, -8);
+const wedgePed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.0), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+wedgePed.position.y = 0.5; wedgeBtnGroup.add(wedgePed);
+const wedgeBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.6), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+wedgeBtnMesh.position.y = 1.17; wedgeBtnGroup.add(wedgeBtnMesh);
+scene.add(wedgeBtnGroup);
+const wedgeLabel = document.createElement('div');
+wedgeLabel.style.cssText = 'position:absolute;color:#fff;font:bold 13px monospace;background:rgba(0,0,0,0.6);padding:3px 7px;border-radius:4px;pointer-events:none;display:none';
+document.body.appendChild(wedgeLabel);
+
 // Tornado button
 const tornadoBtnGroup = new THREE.Group();
 tornadoBtnGroup.position.set(8, 0, -8);
@@ -568,6 +603,8 @@ let meteorActive = false, meteorSpawnTimer = 0;
 const meteors = [], impacts = [];
 let tornadoActive = false, tornadoX = 40, tornadoZ = 40;
 let tornadoVX = 6, tornadoVZ = 6, tornadoDirTimer = 0, tornadoSpin = 0;
+let wedgeActive = false, wedgeX = -40, wedgeZ = -40;
+let wedgeVX = 5, wedgeVZ = 4, wedgeDirTimer = 2, wedgeSpin = 0;
 let camYaw = 0;
 const camDist = 9, camHeight = 4.5;
 const rdVel = new THREE.Vector3();
@@ -645,11 +682,13 @@ window.addEventListener('keydown', function(e) {
     const tx = pp.x - tsunamiBtnGroup.position.x, tz = pp.z - tsunamiBtnGroup.position.z;
     const mtx = pp.x - meteorBtnGroup.position.x, mtz = pp.z - meteorBtnGroup.position.z;
     const tnx = pp.x - tornadoBtnGroup.position.x, tnz = pp.z - tornadoBtnGroup.position.z;
+    const wgx = pp.x - wedgeBtnGroup.position.x, wgz = pp.z - wedgeBtnGroup.position.z;
     if (!isRagdoll && Math.sqrt(tx*tx+tz*tz) < 3.5) toggleTsunami();
     else if (!isRagdoll && Math.sqrt(fx*fx+fz*fz) < 3.5) toggleFlood();
     else if (!isRagdoll && Math.sqrt(bx*bx+bz*bz) < 3.5) togglePVP();
     else if (!isRagdoll && Math.sqrt(mtx*mtx+mtz*mtz) < 3.5) toggleMeteor();
     else if (!isRagdoll && Math.sqrt(tnx*tnx+tnz*tnz) < 3.5) toggleTornado();
+    else if (!isRagdoll && Math.sqrt(wgx*wgx+wgz*wgz) < 3.5) toggleWedge();
     else tryEnterExit();
   }
   if (e.code === 'KeyQ') {
@@ -751,6 +790,13 @@ function toggleTornado() {
   tornadoBtnMesh.material.color.setHex(tornadoActive ? 0xccee00 : 0x88aa00);
   tornadoMesh.visible = tornadoActive;
   if (tornadoActive) { tornadoX = 40; tornadoZ = 40; tornadoVX = 6; tornadoVZ = 4; tornadoDirTimer = 2; }
+}
+
+function toggleWedge() {
+  wedgeActive = !wedgeActive;
+  wedgeBtnMesh.material.color.setHex(wedgeActive ? 0xd2691e : 0x8B4513);
+  wedgeMesh.visible = wedgeActive;
+  if (wedgeActive) { wedgeX = -40; wedgeZ = -40; wedgeVX = 5; wedgeVZ = 4; wedgeDirTimer = 2; }
 }
 
 function toggleMeteor() {
@@ -1568,6 +1614,62 @@ function animate() {
       }
     }
   }
+  // Wedge tornado
+  if (wedgeActive) {
+    wedgeDirTimer -= dt;
+    if (wedgeDirTimer <= 0) {
+      wedgeDirTimer = 1.5 + Math.random()*2.5;
+      const ang = Math.random()*Math.PI*2, spd = 5+Math.random()*6;
+      wedgeVX = Math.sin(ang)*spd; wedgeVZ = Math.cos(ang)*spd;
+    }
+    wedgeX += wedgeVX*dt; wedgeZ += wedgeVZ*dt;
+    if (Math.abs(wedgeX) > 185) { wedgeVX *= -1; wedgeX = Math.sign(wedgeX)*185; }
+    if (Math.abs(wedgeZ) > 185) { wedgeVZ *= -1; wedgeZ = Math.sign(wedgeZ)*185; }
+    wedgeSpin += dt*2.2;
+    wedgeMesh.position.set(wedgeX, 0, wedgeZ);
+    wedgeMesh.rotation.y = wedgeSpin;
+    for (let i = 0; i < wedgeDebris.length; i++) {
+      const db = wedgeDebris[i];
+      db.angle += db.spd * dt;
+      db.mesh.position.set(Math.cos(db.angle)*db.r, db.h, Math.sin(db.angle)*db.r);
+    }
+    const wSuctionR = 32, wThrowR = 16;
+    const pp3 = char.root.position;
+    const wpdx = wedgeX-pp3.x, wpdz = wedgeZ-pp3.z;
+    const wpd = Math.sqrt(wpdx*wpdx+wpdz*wpdz);
+    if (wpd < wSuctionR && !inCar) {
+      if (wpd < wThrowR && !isRagdoll) {
+        isRagdoll = true;
+        rdVel.set((Math.random()-0.5)*28, 20, (Math.random()-0.5)*28);
+        rdAngVel.set((Math.random()-0.5)*18,(Math.random()-0.5)*14,(Math.random()-0.5)*18);
+      } else if (isRagdoll) {
+        const pull = (1-wpd/wSuctionR)*22;
+        rdVel.x += wpdx/wpd*pull*dt; rdVel.z += wpdz/wpd*pull*dt;
+      } else {
+        const pull = (1-wpd/wSuctionR)*18;
+        char.root.position.x += wpdx/wpd*pull*dt; char.root.position.z += wpdz/wpd*pull*dt;
+      }
+    }
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      const dx = wedgeX-n.group.position.x, dz = wedgeZ-n.group.position.z;
+      const d = Math.sqrt(dx*dx+dz*dz);
+      if (d < wSuctionR) {
+        if (d < wThrowR && !n.ragdoll) {
+          n.ragdoll = true;
+          n.rvx = (Math.random()-0.5)*28; n.rvy = 20+Math.random()*10; n.rvz = (Math.random()-0.5)*28;
+          n.rax = (Math.random()-0.5)*18; n.ray = (Math.random()-0.5)*14; n.raz = (Math.random()-0.5)*18;
+        } else if (n.ragdoll) {
+          const pull = (1-d/wSuctionR)*20;
+          n.rvx += dx/d*pull*dt; n.rvz += dz/d*pull*dt;
+        } else {
+          const pull = (1-d/wSuctionR)*16;
+          n.vx = n.vx*0.7 + dx/d*pull*0.3; n.vz = n.vz*0.7 + dz/d*pull*0.3;
+        }
+      }
+    }
+  }
+
   // Tornado button label
   const tnp = char.root.position;
   const tndx = tnp.x-tornadoBtnGroup.position.x, tndz = tnp.z-tornadoBtnGroup.position.z;
@@ -1580,6 +1682,19 @@ function animate() {
     tornadoLabel.style.display = 'block';
     tornadoLabel.textContent = '[E] '+(tornadoActive?'STOP TORNADO':'TORNADO');
   } else { tornadoLabel.style.display = 'none'; }
+
+  // Wedge button label
+  const wgp = char.root.position;
+  const wgdx = wgp.x-wedgeBtnGroup.position.x, wgdz = wgp.z-wedgeBtnGroup.position.z;
+  if (Math.sqrt(wgdx*wgdx+wgdz*wgdz) < 3.5 && !isRagdoll) {
+    wedgeBtnGroup.getWorldPosition(_v3); _v3.y += 1.8;
+    const wgproj = _v3.clone().project(camera);
+    const hw6 = renderer.domElement.clientWidth/2, hh6 = renderer.domElement.clientHeight/2;
+    wedgeLabel.style.left = (wgproj.x*hw6+hw6-65)+'px';
+    wedgeLabel.style.top  = (-wgproj.y*hh6+hh6-20)+'px';
+    wedgeLabel.style.display = 'block';
+    wedgeLabel.textContent = '[E] '+(wedgeActive?'STOP WEDGE':'WEDGE TORNADO');
+  } else { wedgeLabel.style.display = 'none'; }
 
   // Meteor shower
   if (meteorActive) {
